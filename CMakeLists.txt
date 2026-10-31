@@ -194,7 +194,13 @@ if(WIN32)
 	target_sources(flibustier PRIVATE desktop/flibustier.rc)
 	set_source_files_properties(desktop/flibustier.rc PROPERTIES
 	    OBJECT_DEPENDS ${CMAKE_SOURCE_DIR}/desktop/flibustier.ico)
-elseif(NOT APPLE)
+elseif(APPLE)
+	target_sources(flibustier PRIVATE desktop/flibustier.icns)
+	set_source_files_properties(desktop/flibustier.icns PROPERTIES
+	    MACOSX_PACKAGE_LOCATION Resources)
+	set_target_properties(flibustier PROPERTIES
+	    MACOSX_BUNDLE_ICON_FILE flibustier.icns)
+else()
 	set(fl_icon ${CMAKE_SOURCE_DIR}/desktop/icons/flibustier-64.png)
 	set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 	    ${fl_icon})

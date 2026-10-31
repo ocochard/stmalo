@@ -120,8 +120,9 @@ a resource of the `.exe` named `GLFW_ICON`, shown by Explorer and by
 GLFW on the window. Unix: the game hands its window the 64 px PNG,
 built in; a system install adds `share/applications/flibustier.desktop`
 and the `hicolor` icons (`StartupWMClass` matches the window's
-`flibustier` class). macOS: `flibustier.icns` waits for the bundle (its
-`Contents/Resources`, `CFBundleIconFile`). Checked: the resources in the
+`flibustier` class). macOS: `flibustier.icns` in the bundle's
+`Contents/Resources`, named by `CFBundleIconFile` (not yet built on a
+Mac). Checked: the resources in the
 cross-built `.exe` (llvm-readobj), the staged install's files; the X11
 window icon not yet seen on a screen. The FreeBSD port's plist needs the
 new files.
