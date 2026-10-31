@@ -321,6 +321,8 @@ if(FLIBUSTIER_OPENPACK)
 	    --tags --always OUTPUT_VARIABLE fl_packver
 	    OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 	if(fl_packver)
+		# A release tag (openpack-0.1) already names the pack.
+		string(REGEX REPLACE "^openpack-" "" fl_packver ${fl_packver})
 		string(APPEND fl_name -openpack-${fl_packver})
 	endif()
 endif()
