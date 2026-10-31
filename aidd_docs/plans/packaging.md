@@ -169,8 +169,15 @@ reproducible), the Windows zip
 `flibustier-0.1.0-openpack-0.1-windows-x86_64.zip` and, built on the
 maintainer's Mac, `flibustier-0.1.0-openpack-0.1-darwin-universal.dmg`
 (both with the music, the maintainer's choice) attached to the engine's
-GitHub release, the FreeBSD ports moved to them. No Linux package yet;
-CI below is still to do.
+GitHub release, the FreeBSD ports moved to them. Linux: a Flatpak bundle
+(`desktop/org.flibustier.Flibustier.yml`, built on framework2 with the
+26.08 runtime; raylib for X11 only, Wayland through XWayland) on the same
+release; v0.1.0 does not build with GCC 14 and later (`progdir.c`), so
+the manifest applies the fixes made since as `desktop/flatpak-v0.1.0.patch`.
+Checked: installed from the bundle, it starts headless and draws the
+credits. Left: Flathub (the metainfo's licence must name the pack's
+terms), a window and sound seen on a Linux desktop. CI below is still to
+do.
 
 - Versions: the engine and the pack tagged apart (`v0.x`,
   `openpack-0.x`); a package names both.
