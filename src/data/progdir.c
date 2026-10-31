@@ -9,6 +9,10 @@
  * apart from fsys.c, whose POSIX feature macro would hide these calls.
  */
 
+#if defined(__linux__)
+#define _POSIX_C_SOURCE 200809L	/* readlink() under -std=c99 */
+#endif
+
 #if defined(_WIN32)
 #include <windows.h>
 #elif defined(__APPLE__)
