@@ -112,6 +112,20 @@ unzipped game starts with no option from another directory, prints its
 messages, honours redirected output, and draws the same credits as the
 FreeBSD install. Left: a run on a real Windows, and the program's icon.
 
+**FreeBSD ports, written (2026-10-31), not committed:**
+`games/flibustier` (the engine from GitHub at a commit, system raylib
+and FreeType, depends on the pack) and `games/flibustier-openpack` (the
+pack, `MUSIC` option on by default) in the maintainer's ports tree.
+GitHub's archives of the pack hold Git LFS pointers, not the files, so
+the pack port fetches release tarballs made by
+`tools/openpack_dist.py` (reproducible; the remade music in a tarball
+of its own) from the pack's `openpack-<version>` GitHub release. While
+the music's author has not given permission, its licence allows no
+mirroring, so the official package builders skip the port with the
+music on. Checked: both ports stage with no plist issues, with the
+music and without; the staged game starts on the staged pack.
+Left: the `openpack-0.1` release upload, a poudriere run.
+
 ### P5. Releases
 
 - Versions: the engine and the pack tagged apart (`v0.x`,
