@@ -112,6 +112,25 @@ unzipped game starts with no option from another directory, prints its
 messages, honours redirected output, and draws the same credits as the
 FreeBSD install. Left: a run on a real Windows, and the program's icon.
 
+**macOS dmg, done (2026-10-31):** on a Mac, `cpack` in a universal
+Release build (`-DFLIBUSTIER_BUNDLED_DEPS=ON
+-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0`)
+makes `flibustier-<version>-openpack-<pack tag or commit>-darwin-universal.dmg`
+(221 MB with the music): `Flibustier.app` (bundle id
+`org.flibustier.Flibustier`, `cmake/Info.plist.in`, the executable is
+`Contents/MacOS/Flibustier`), the pack in `Contents/Resources/openpack`,
+the documents beside it, an `Applications` link. `flibustier-sim` stays
+out. The install ends with an ad hoc `codesign --force --deep -s -`:
+without it the bundle is "not signed at all" (only the linker's
+signature on the binary), and `codesign -v --deep --strict` fails.
+Checked: `lipo -info` gives x86_64 and arm64; `otool -L` lists only
+`/usr/lib` and `/System` (OpenGL, Cocoa, IOKit, CoreFoundation, ...);
+`codesign -v` valid on the mounted dmg and on a copy in `/tmp`; the copy
+run from `/` with no option draws the credits; a double click opens a
+frontmost window and loads CoreAudio. Left: hearing the sound, a run on
+Intel, Gatekeeper's first-run prompt on a downloaded (quarantined) copy,
+the icon, saves in `~/Library/Application Support/Flibustier`.
+
 **FreeBSD ports, written (2026-10-31), not committed:**
 `games/flibustier` (the engine from GitHub at a commit, system raylib
 and FreeType, depends on the pack) and `games/flibustier-openpack` (the

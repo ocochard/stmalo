@@ -169,6 +169,17 @@ add_executable(flibustier src/main.c src/play.c src/crt.c src/viewer.c
     src/soundexport.c src/console.c)
 # Windows: no console window beside the game's (see src/console.h).
 set_target_properties(flibustier PROPERTIES WIN32_EXECUTABLE ON)
+# macOS: Flibustier.app, the pack in its Resources (see Install).
+if(APPLE)
+	set_target_properties(flibustier PROPERTIES
+	    MACOSX_BUNDLE ON
+	    OUTPUT_NAME Flibustier
+	    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/cmake/Info.plist.in
+	    MACOSX_BUNDLE_GUI_IDENTIFIER org.flibustier.Flibustier
+	    MACOSX_BUNDLE_BUNDLE_NAME Flibustier
+	    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+	    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
+endif()
 target_link_libraries(flibustier PRIVATE flibustier_core ${FLIBUSTIER_RAYLIB}
 	Threads::Threads)
 if(UNIX)
@@ -201,7 +212,13 @@ option(FLIBUSTIER_PORTABLE "Install everything in one directory" ${WIN32})
 set(FLIBUSTIER_OPENPACK "" CACHE PATH "Open pack checkout to install")
 option(FLIBUSTIER_OPENPACK_MUSIC
     "Install the open pack's remade music" ON)
-if(FLIBUSTIER_PORTABLE)
+if(APPLE)
+	# The .app beside the documents; the game finds its pack in
+	# Contents/Resources from Contents/MacOS.
+	set(fl_bin .)
+	set(fl_data Flibustier.app/Contents/Resources)
+	set(fl_doc .)
+elseif(FLIBUSTIER_PORTABLE)
 	set(fl_bin .)
 	set(fl_data .)
 	set(fl_doc .)
@@ -213,8 +230,13 @@ else()
 	target_compile_definitions(flibustier PRIVATE
 	    DATA_FROM_BIN="${fl_rel}")
 endif()
-install(TARGETS flibustier flibustier-sim DESTINATION ${fl_bin}
-    COMPONENT game)
+if(APPLE)
+	install(TARGETS flibustier BUNDLE DESTINATION ${fl_bin}
+	    COMPONENT game)
+else()
+	install(TARGETS flibustier flibustier-sim DESTINATION ${fl_bin}
+	    COMPONENT game)
+endif()
 install(FILES LICENSE README.md MANUAL.md DESTINATION ${fl_doc}
     COMPONENT game)
 if(FLIBUSTIER_OPENPACK)
@@ -240,6 +262,17 @@ if(FLIBUSTIER_OPENPACK)
 	    DESTINATION ${fl_data}/openpack COMPONENT game ${fl_skip})
 endif()
 
+# macOS: stripping and the added pack leave the .app with no valid
+# signature, and Apple Silicon will not start unsigned code: seal it ad hoc
+# (no developer account) once everything is in place.
+if(APPLE)
+	install(CODE "
+		execute_process(COMMAND codesign --force --deep -s -
+		    \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/Flibustier.app\"
+		    COMMAND_ERROR_IS_FATAL ANY)"
+	    COMPONENT game)
+endif()
+
 # Packages (cpack in the build directory): the "game" component alone, in
 # a zip on Windows and a tarball elsewhere, named for the engine's
 # version and the open pack's (its git tag or commit).
@@ -253,6 +286,9 @@ if(FLIBUSTIER_OPENPACK)
 	endif()
 endif()
 string(TOLOWER ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR} fl_sys)
+if(APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES ";")
+	set(fl_sys darwin-universal)
+endif()
 set(CPACK_PACKAGE_NAME flibustier)
 set(CPACK_PACKAGE_VENDOR "Olivier Cochard-Labbé")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
@@ -260,6 +296,8 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
 set(CPACK_PACKAGE_FILE_NAME ${fl_name}-${fl_sys})
 if(WIN32)
 	set(CPACK_GENERATOR ZIP)
+elseif(APPLE)
+	set(CPACK_GENERATOR DragNDrop)
 else()
 	set(CPACK_GENERATOR TGZ)
 endif()
