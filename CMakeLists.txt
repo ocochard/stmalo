@@ -283,9 +283,10 @@ if(FLIBUSTIER_OPENPACK)
 		    "FLIBUSTIER_OPENPACK: no pack.ini in ${FLIBUSTIER_OPENPACK}")
 	endif()
 	# What playing needs: provenance and the coverage report stay in
-	# the pack's repository.
+	# the pack's repository, artgen's working directories (*.work,
+	# *.frames, not in git) on the machine that rendered the art.
 	set(fl_skip PATTERN provenance EXCLUDE PATTERN COVERAGE.md EXCLUDE
-	    PATTERN .git* EXCLUDE)
+	    PATTERN .git* EXCLUDE PATTERN *.work EXCLUDE PATTERN *.frames EXCLUDE)
 	if(NOT FLIBUSTIER_OPENPACK_MUSIC)
 		list(APPEND fl_skip PATTERN music.ini EXCLUDE
 		    PATTERN CREDITS.txt EXCLUDE)
