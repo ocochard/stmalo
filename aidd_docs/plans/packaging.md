@@ -101,6 +101,17 @@ Done (2026-10-31); README "Installing with the open pack":
 CPack makes the zip, tarball and dmg from the P3 rules; the AppImage
 and the FreeBSD port have their own tools.
 
+**Windows zip, done (2026-10-31):** `cpack` in the cross build
+directory makes `flibustier-<version>-openpack-<pack tag or
+commit>-windows-x86_64.zip` (223 MB with the music), one folder holding
+`flibustier.exe`, `flibustier-sim.exe`, `openpack/` and the documents;
+elsewhere it makes the same as a tarball. The game is a windowed program
+on Windows (no console window on a double click) that reattaches to the
+console it is started from (`src/console.c`). Checked under Wine: the
+unzipped game starts with no option from another directory, prints its
+messages, honours redirected output, and draws the same credits as the
+FreeBSD install. Left: a run on a real Windows, and the program's icon.
+
 ### P5. Releases
 
 - Versions: the engine and the pack tagged apart (`v0.x`,

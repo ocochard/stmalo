@@ -130,7 +130,9 @@ cmake --install build-rel --component game --prefix /usr/local
 This puts the programs in `bin` and the pack in
 `share/flibustier/openpack`, and the documents in `share/doc`.
 `-DFLIBUSTIER_PORTABLE=ON` (the default for Windows) puts everything in
-the prefix itself instead, as a zip holds it. The pack's remade music,
+the prefix itself instead, as a zip holds it. `cpack` in the build
+directory makes the package: a zip on Windows (the cross build above),
+a tarball elsewhere. The pack's remade music,
 which belongs to its author, is installed too;
 `-DFLIBUSTIER_OPENPACK_MUSIC=OFF` leaves it out, with its credit. The
 pack's provenance records stay in its repository.

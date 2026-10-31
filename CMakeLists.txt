@@ -166,7 +166,9 @@ endif()
 # from their own dependencies, so link them explicitly.
 find_package(Threads REQUIRED)
 add_executable(flibustier src/main.c src/play.c src/crt.c src/viewer.c
-    src/soundexport.c)
+    src/soundexport.c src/console.c)
+# Windows: no console window beside the game's (see src/console.h).
+set_target_properties(flibustier PROPERTIES WIN32_EXECUTABLE ON)
 target_link_libraries(flibustier PRIVATE flibustier_core ${FLIBUSTIER_RAYLIB}
 	Threads::Threads)
 if(UNIX)
@@ -237,6 +239,36 @@ if(FLIBUSTIER_OPENPACK)
 	install(DIRECTORY ${FLIBUSTIER_OPENPACK}/
 	    DESTINATION ${fl_data}/openpack COMPONENT game ${fl_skip})
 endif()
+
+# Packages (cpack in the build directory): the "game" component alone, in
+# a zip on Windows and a tarball elsewhere, named for the engine's
+# version and the open pack's (its git tag or commit).
+set(fl_name flibustier-${PROJECT_VERSION})
+if(FLIBUSTIER_OPENPACK)
+	execute_process(COMMAND git -C ${FLIBUSTIER_OPENPACK} describe
+	    --tags --always OUTPUT_VARIABLE fl_packver
+	    OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+	if(fl_packver)
+		string(APPEND fl_name -openpack-${fl_packver})
+	endif()
+endif()
+string(TOLOWER ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR} fl_sys)
+set(CPACK_PACKAGE_NAME flibustier)
+set(CPACK_PACKAGE_VENDOR "Olivier Cochard-Labbé")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+    "Open source engine re-implementation of Pirates! Gold")
+set(CPACK_PACKAGE_FILE_NAME ${fl_name}-${fl_sys})
+if(WIN32)
+	set(CPACK_GENERATOR ZIP)
+else()
+	set(CPACK_GENERATOR TGZ)
+endif()
+set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
+set(CPACK_COMPONENTS_ALL game)
+set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
+set(CPACK_COMPONENT_INCLUDE_TOPLEVEL_DIRECTORY ON)	# unzips to a folder
+set(CPACK_STRIP_FILES ON)
+include(CPack)
 
 # Tests.  test_original needs the game data: set FLIBUSTIER_DATA to the GOG
 # DATA.DAT (or an install directory) in the environment, otherwise it is

@@ -12,6 +12,7 @@
 
 #include "assets/textfiles.h"
 #include "assets/worldfiles.h"
+#include "console.h"
 #include "data/fsys.h"
 #include "data/pack.h"
 #include "play.h"
@@ -207,6 +208,7 @@ main(int argc, char **argv)
 	int shot_frames = 30, rc, a, crt = 0, debug = 0, smooth = 0;
 	char err[256];
 
+	console_attach();
 	data = getenv("FLIBUSTIER_DATA");
 	for (a = 1; a < argc; a++) {
 		if (strcmp(argv[a], "--data") == 0 && a + 1 < argc)
