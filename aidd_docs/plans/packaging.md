@@ -110,7 +110,8 @@ on Windows (no console window on a double click) that reattaches to the
 console it is started from (`src/console.c`). Checked under Wine: the
 unzipped game starts with no option from another directory, prints its
 messages, honours redirected output, and draws the same credits as the
-FreeBSD install. Left: a run on a real Windows.
+FreeBSD install. The maintainer played it on Windows 11 (2026-10-31):
+it works.
 
 **The program's icon, done (2026-10-31):** an original drawing (a pirate ship
 with a skull on its main sail, at dusk; BSD-2-Clause) in `desktop/flibustier.svg`;
@@ -161,6 +162,14 @@ music and without; the staged game starts on the staged pack.
 Left: the `openpack-0.1` release upload, a poudriere run.
 
 ### P5. Releases
+
+**0.1, made by hand (2026-10-31):** tags `v0.1.0` (engine) and
+`openpack-0.1` (pack, its tarballs from `tools/openpack_dist.py`, checked
+reproducible), the Windows zip
+`flibustier-0.1.0-openpack-0.1-windows-x86_64.zip` (with the music, the
+maintainer's choice) attached to the engine's GitHub release, the
+FreeBSD ports moved to them. No macOS or Linux package yet; CI below is
+still to do.
 
 - Versions: the engine and the pack tagged apart (`v0.x`,
   `openpack-0.x`); a package names both.
