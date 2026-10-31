@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: BSD-2-Clause
+     Copyright (c) 2026, Olivier Cochard-Labbé
+     The program's icon: a three-masted ship at dusk, a skull on its main sail.
+     tools/icons.py renders the other sizes and formats from it. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f3d6e"/>
+      <stop offset="0.55" stop-color="#4f7fb5"/>
+      <stop offset="1" stop-color="#f0b46a"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b5a86"/>
+      <stop offset="1" stop-color="#0a2340"/>
+    </linearGradient>
+    <clipPath id="tile">
+      <rect x="8" y="8" width="240" height="240" rx="52"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect x="0" y="0" width="256" height="176" fill="url(#sky)"/>
+    <rect x="0" y="172" width="256" height="84" fill="url(#sea)"/>
+    <!-- swell -->
+    <path d="M8 214 q20 -10 40 0 t40 0 t40 0 t40 0 t40 0 t40 0"
+        fill="none" stroke="#5f9ccc" stroke-width="5" stroke-linecap="round"/>
+    <path d="M28 236 q20 -9 40 0 t40 0 t40 0 t40 0 t40 0"
+        fill="none" stroke="#3f7fae" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g stroke="#2b1a10" stroke-linejoin="round" stroke-linecap="round">
+    <!-- bowsprit and masts -->
+    <path d="M196 156 L238 128" stroke-width="5"/>
+    <path d="M128 30 V162 M174 58 V160 M84 70 V156" stroke-width="6"/>
+    <!-- jib -->
+    <path d="M178 66 L232 132 L184 148 Q190 106 178 66 Z"
+        fill="#f4e7c6" stroke-width="4"/>
+    <!-- mizzen lateen -->
+    <path d="M60 140 L100 70 Q110 112 104 144 Z" fill="#f4e7c6" stroke-width="4"/>
+    <!-- fore mast sails, behind the main course -->
+    <path d="M156 70 H192 Q197 86 194 100 H154 Q151 86 156 70 Z"
+        fill="#f4e7c6" stroke-width="4"/>
+    <path d="M150 108 H198 Q205 126 200 146 H148 Q143 126 150 108 Z"
+        fill="#f4e7c6" stroke-width="4"/>
+    <!-- main mast sails -->
+    <path d="M104 46 H152 Q158 66 154 86 H102 Q98 66 104 46 Z"
+        fill="#f4e7c6" stroke-width="4"/>
+    <path d="M86 90 H170 Q180 121 172 152 H84 Q76 121 86 90 Z"
+        fill="#f4e7c6" stroke-width="4"/>
+  </g>
+  <!-- skull and crossbones on the main course -->
+  <g fill="#1c120b" stroke="#1c120b" stroke-linecap="round">
+    <path d="M100 103 L156 141 M100 141 L156 103" stroke-width="8"/>
+    <circle cx="97" cy="101" r="6" stroke="none"/>
+    <circle cx="159" cy="101" r="6" stroke="none"/>
+    <circle cx="97" cy="143" r="6" stroke="none"/>
+    <circle cx="159" cy="143" r="6" stroke="none"/>
+    <circle cx="128" cy="114" r="20" stroke="none"/>
+    <rect x="115" y="118" width="26" height="22" rx="5" stroke="none"/>
+  </g>
+  <g fill="#f4e7c6" stroke="#f4e7c6" stroke-linecap="round">
+    <circle cx="119.5" cy="115" r="6.5" stroke="none"/>
+    <circle cx="136.5" cy="115" r="6.5" stroke="none"/>
+    <path d="M128 123 L124 131 H132 Z" stroke="none"/>
+    <path d="M121 134 V139 M128 134 V139 M135 134 V139" stroke-width="2.5"/>
+  </g>
+  <g stroke="#2b1a10" stroke-linejoin="round" stroke-linecap="round">
+    <!-- hull -->
+    <path d="M38 142 H78 L84 154 H206 L190 186 Q128 196 66 186 L52 160 Q42 154 38 142 Z"
+        fill="#6b3d22" stroke-width="5"/>
+    <path d="M60 168 H196" fill="none" stroke="#e0b25a" stroke-width="4"/>
+  </g>
+</svg>

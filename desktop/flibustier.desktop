@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Flibustier
+GenericName=Pirate adventure
+GenericName[fr]=Aventure de pirates
+GenericName[de]=Piratenabenteuer
+Comment=Open source engine re-implementation of Pirates! Gold
+Exec=flibustier
+Icon=flibustier
+Terminal=false
+Categories=Game;StrategyGame;
+Keywords=pirates;sail;sword;
+StartupWMClass=flibustier

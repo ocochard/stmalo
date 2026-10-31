@@ -110,7 +110,21 @@ on Windows (no console window on a double click) that reattaches to the
 console it is started from (`src/console.c`). Checked under Wine: the
 unzipped game starts with no option from another directory, prints its
 messages, honours redirected output, and draws the same credits as the
-FreeBSD install. Left: a run on a real Windows, and the program's icon.
+FreeBSD install. Left: a run on a real Windows.
+
+**The program's icon, done (2026-10-31):** an original drawing (a pirate ship
+with a skull on its main sail, at dusk; BSD-2-Clause) in `desktop/flibustier.svg`;
+`tools/icons.py` renders the committed PNG sizes, `flibustier.ico` and
+`flibustier.icns` from it (reproducible, needs `rsvg-convert`). Windows:
+a resource of the `.exe` named `GLFW_ICON`, shown by Explorer and by
+GLFW on the window. Unix: the game hands its window the 64 px PNG,
+built in; a system install adds `share/applications/flibustier.desktop`
+and the `hicolor` icons (`StartupWMClass` matches the window's
+`flibustier` class). macOS: `flibustier.icns` waits for the bundle (its
+`Contents/Resources`, `CFBundleIconFile`). Checked: the resources in the
+cross-built `.exe` (llvm-readobj), the staged install's files; the X11
+window icon not yet seen on a screen. The FreeBSD port's plist needs the
+new files.
 
 **macOS dmg, done (2026-10-31):** on a Mac, `cpack` in a universal
 Release build (`-DFLIBUSTIER_BUNDLED_DEPS=ON

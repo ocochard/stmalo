@@ -186,6 +186,25 @@ if(UNIX)
 	target_link_libraries(flibustier PRIVATE m)
 endif()
 target_compile_options(flibustier PRIVATE ${FLIBUSTIER_WARNINGS})
+# The program's icon (desktop/, made by tools/icons.py): a resource of the
+# .exe on Windows, from the bundle on macOS, elsewhere a PNG the game hands
+# its window.
+if(WIN32)
+	enable_language(RC)
+	target_sources(flibustier PRIVATE desktop/flibustier.rc)
+	set_source_files_properties(desktop/flibustier.rc PROPERTIES
+	    OBJECT_DEPENDS ${CMAKE_SOURCE_DIR}/desktop/flibustier.ico)
+elseif(NOT APPLE)
+	set(fl_icon ${CMAKE_SOURCE_DIR}/desktop/icons/flibustier-64.png)
+	set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+	    ${fl_icon})
+	file(READ ${fl_icon} fl_hex HEX)
+	string(REGEX REPLACE "(..)" "0x\\1," fl_hex "${fl_hex}")
+	file(WRITE ${CMAKE_BINARY_DIR}/gen/window_icon.h
+	    "static const unsigned char window_icon_png[] = {${fl_hex}};\n")
+	target_include_directories(flibustier PRIVATE ${CMAKE_BINARY_DIR}/gen)
+	target_compile_definitions(flibustier PRIVATE HAVE_WINDOW_ICON)
+endif()
 
 # Headless simulation, driven by JSON lines (bots, AI agents, tests).
 add_executable(flibustier-sim src/sim_main.c)
@@ -239,6 +258,19 @@ else()
 endif()
 install(FILES LICENSE README.md MANUAL.md DESTINATION ${fl_doc}
     COMPONENT game)
+# The desktop menu entry and its icons, for a system install on Unix.
+if(UNIX AND NOT APPLE AND NOT FLIBUSTIER_PORTABLE)
+	install(FILES desktop/flibustier.desktop
+	    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications COMPONENT game)
+	install(FILES desktop/flibustier.svg
+	    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+	    COMPONENT game)
+	foreach(n 16 24 32 48 64 128 256 512)
+		install(FILES desktop/icons/flibustier-${n}.png
+		    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${n}x${n}/apps
+		    RENAME flibustier.png COMPONENT game)
+	endforeach()
+endif()
 if(FLIBUSTIER_OPENPACK)
 	if(NOT EXISTS ${FLIBUSTIER_OPENPACK}/pack.ini)
 		message(FATAL_ERROR

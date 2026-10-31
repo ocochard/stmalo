@@ -19,6 +19,9 @@
 #include "sim/save.h"
 #include "ui/game.h"
 #include "ui/script.h"
+#ifdef HAVE_WINDOW_ICON
+#include "window_icon.h"
+#endif
 
 #define WINDOW_SCALE	2
 
@@ -450,6 +453,15 @@ play_run(struct packs *packs, const char *lang, const char *saves,
 	SetTraceLogLevel(getenv("FLIBUSTIER_GL_LOG") != NULL ? LOG_INFO : LOG_WARNING);
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
 	InitWindow(FB_W * WINDOW_SCALE, FB_H * WINDOW_SCALE, "flibustier");
+#ifdef HAVE_WINDOW_ICON
+	{
+		Image icon = LoadImageFromMemory(".png", window_icon_png,
+		    (int)sizeof(window_icon_png));
+
+		SetWindowIcon(icon);
+		UnloadImage(icon);
+	}
+#endif
 	SetExitKey(KEY_NULL);	/* Escape is a game key */
 	HideCursor();		/* the game draws its own sword pointer */
 	SetTargetFPS(60);
