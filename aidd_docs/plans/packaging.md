@@ -166,10 +166,11 @@ Left: the `openpack-0.1` release upload, a poudriere run.
 **0.1, made by hand (2026-10-31):** tags `v0.1.0` (engine) and
 `openpack-0.1` (pack, its tarballs from `tools/openpack_dist.py`, checked
 reproducible), the Windows zip
-`flibustier-0.1.0-openpack-0.1-windows-x86_64.zip` (with the music, the
-maintainer's choice) attached to the engine's GitHub release, the
-FreeBSD ports moved to them. No macOS or Linux package yet; CI below is
-still to do.
+`flibustier-0.1.0-openpack-0.1-windows-x86_64.zip` and, built on the
+maintainer's Mac, `flibustier-0.1.0-openpack-0.1-darwin-universal.dmg`
+(both with the music, the maintainer's choice) attached to the engine's
+GitHub release, the FreeBSD ports moved to them. No Linux package yet;
+CI below is still to do.
 
 - Versions: the engine and the pack tagged apart (`v0.x`,
   `openpack-0.x`); a package names both.
