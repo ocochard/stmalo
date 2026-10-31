@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026, Olivier Cochard-Labbé
+#
+# Flatpak manifest: the engine at a release tag, raylib built in, and the
+# open pack (with its remade music) from the pack's release tarballs.
+#
+# flatpak-builder --user --install-deps-from=flathub --force-clean \
+#     --repo=repo build desktop/org.flibustier.Flibustier.yml
+# flatpak build-bundle repo flibustier.flatpak org.flibustier.Flibustier \
+#     --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo
+app-id: org.flibustier.Flibustier
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
+command: flibustier
+rename-desktop-file: flibustier.desktop
+rename-icon: flibustier
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --device=dri
+  - --socket=pulseaudio
+modules:
+  # The game's window, input and sound; the runtime has no raylib.
+  - name: raylib
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_EXAMPLES=OFF
+      - -DBUILD_SHARED_LIBS=OFF
+      - -DGLFW_BUILD_WAYLAND=OFF
+      - -DGLFW_BUILD_X11=ON
+    cleanup:
+      - /include
+      - /lib
+    sources:
+      - type: git
+        url: https://github.com/raysan5/raylib.git
+        tag: '5.5'
+        commit: c1ab645ca298a2801097931d1079b10ff7eb9df8
+
+  - name: flibustier
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_TESTING=OFF
+    post-install:
+      - install -Dm644 org.flibustier.Flibustier.metainfo.xml
+        /app/share/metainfo/org.flibustier.Flibustier.metainfo.xml
+    sources:
+      - type: git
+        url: https://github.com/ocochard/flibustier.git
+        tag: v0.1.0
+        commit: 9c7a3ac3137420389e58d4e81f941ae7d27ee8b0
+      # Fixed after v0.1.0: the Linux build under GCC 14 and later, and
+      # the SVG icon AppStream did not recognise.
+      - type: patch
+        path: flatpak-v0.1.0.patch
+      - type: file
+        path: org.flibustier.Flibustier.metainfo.xml
+
+  # Where the game looks from its bin directory: share/flibustier/openpack.
+  - name: openpack
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/share/flibustier/openpack
+      - cp -a . /app/share/flibustier/openpack/
+    sources:
+      - type: archive
+        url: https://github.com/ocochard/flibustier-openpack/releases/download/openpack-0.1/flibustier-openpack-0.1.tar.gz
+        sha256: 1852ad7b0966cf2e628d4039377d0704611eb4dd2afa0b460d7b4bccde0f753e
+      - type: archive
+        url: https://github.com/ocochard/flibustier-openpack/releases/download/openpack-0.1/flibustier-openpack-music-0.1.tar.gz
+        sha256: b48fbf2282c64baad2bd8238ae161355878272e2d94bd27fe4552ee47634eca9

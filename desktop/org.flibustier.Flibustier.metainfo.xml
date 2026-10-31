@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: CC0-1.0
+     Copyright (c) 2026, Olivier Cochard-Labbé -->
+<component type="desktop-application">
+  <id>org.flibustier.Flibustier</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>BSD-2-Clause</project_license>
+  <name>Flibustier</name>
+  <summary>Open source engine re-implementation of Pirates! Gold</summary>
+  <developer id="org.flibustier">
+    <name>Olivier Cochard-Labbé</name>
+  </developer>
+  <description>
+    <p>
+      Flibustier is a clean-room, open source engine for Pirates! Gold: sail
+      the Caribbean, trade, fight ships and duel their captains, raid towns
+      and seek fame and fortune.
+    </p>
+    <p>
+      It comes with an open pack of art, sound and game data, and plays with
+      no original game files. Players who own the GOG release can point it
+      at their own copy instead.
+    </p>
+  </description>
+  <launchable type="desktop-id">org.flibustier.Flibustier.desktop</launchable>
+  <url type="homepage">https://github.com/ocochard/flibustier</url>
+  <url type="bugtracker">https://github.com/ocochard/flibustier/issues</url>
+  <categories>
+    <category>Game</category>
+    <category>StrategyGame</category>
+  </categories>
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-cartoon">moderate</content_attribute>
+  </content_rating>
+  <releases>
+    <release version="0.1.0" date="2026-10-31"/>
+  </releases>
+</component>

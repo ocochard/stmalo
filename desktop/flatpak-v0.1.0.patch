@@ -1,0 +1,62 @@
+From 8c736381806b2fa85f743a3e1e1aeb161c423335 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Olivier=20Cochard-Labb=C3=A9?= <olivier@cochard.me>
+Date: Sat, 31 Oct 2026 23:47:17 +0100
+Subject: [PATCH 1/2] Declare readlink() on Linux under -std=c99: GCC 14 and
+ later refuse the implicit declaration, so the game did not build on current
+ Linux
+
+---
+ src/data/progdir.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/data/progdir.c b/src/data/progdir.c
+index ea4b00e..eff3585 100644
+--- a/src/data/progdir.c
++++ b/src/data/progdir.c
+@@ -9,6 +9,10 @@
+  * apart from fsys.c, whose POSIX feature macro would hide these calls.
+  */
+ 
++#if defined(__linux__)
++#define _POSIX_C_SOURCE 200809L	/* readlink() under -std=c99 */
++#endif
++
+ #if defined(_WIN32)
+ #include <windows.h>
+ #elif defined(__APPLE__)
+-- 
+2.56.0
+
+
+From 13e1c48202231647e9a2c25d8c15700f1bae7d34 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Olivier=20Cochard-Labb=C3=A9?= <olivier@cochard.me>
+Date: Sat, 31 Oct 2026 23:48:45 +0100
+Subject: [PATCH 2/2] Open the icon's SVG with its svg element, the licence
+ comment inside it: AppStream (Flatpak's build) recognises an SVG only by an
+ svg tag in its first 256 bytes
+
+---
+ desktop/flibustier.svg | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/desktop/flibustier.svg b/desktop/flibustier.svg
+index 8b87307..a976c3c 100644
+--- a/desktop/flibustier.svg
++++ b/desktop/flibustier.svg
+@@ -1,9 +1,9 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+-<!-- SPDX-License-Identifier: BSD-2-Clause
+-     Copyright (c) 2026, Olivier Cochard-Labbé
+-     The program's icon: a three-masted ship at dusk, a skull on its main sail.
+-     tools/icons.py renders the other sizes and formats from it. -->
+ <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
++  <!-- SPDX-License-Identifier: BSD-2-Clause
++       Copyright (c) 2026, Olivier Cochard-Labbé
++       The program's icon: a three-masted ship at dusk, a skull on its main sail.
++       tools/icons.py renders the other sizes and formats from it. -->
+   <defs>
+     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+       <stop offset="0" stop-color="#1f3d6e"/>
+-- 
+2.56.0
+
