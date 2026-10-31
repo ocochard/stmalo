@@ -35,6 +35,12 @@ LIBRARY = {
     "rope": ("Rope001", 8.0),
     "iron": ("Metal041B", 2.0),
     "gilt": ("Metal048C", 3.0),
+    # The fencers' clothes: cloths photographed by the image model for
+    # this pack (artgen.py, fencer_fabrics()), plain where not made yet.
+    "fencer-shirt": ("flibustier-shirt", 4.0),
+    "fencer-sash": ("flibustier-sash", 4.0),
+    "fencer-breeches": ("flibustier-breeches", 4.0),
+    "fencer-boots": ("flibustier-boots", 5.0),
 }
 SKY = "kloofendal_48d_partly_cloudy_puresky"	# a Poly Haven HDRI
 

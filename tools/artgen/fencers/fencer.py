@@ -38,7 +38,7 @@ import os
 import sys
 
 import bpy
-from mathutils import Vector
+from mathutils import Euler, Matrix, Quaternion, Vector
 
 # The photographic materials (../materials.py, copied beside this file
 # on the render host).
@@ -48,8 +48,9 @@ import materials			# noqa: E402
 
 # What each part of the clothes is made of (materials.LIBRARY), None a
 # plain material; the skin a little translucent.
-FABRIC = {"shirt": "linen", "sash": "wool", "breeches": "wool",
-          "boots": "leather", "hair": None, "skin": None}
+FABRIC = {"shirt": "fencer-shirt", "sash": "fencer-sash",
+          "breeches": "fencer-breeches", "boots": "fencer-boots",
+          "hair": None, "skin": None}
 
 BANKS = [6, 6, 6, 6, 6, 6, 6, 6, 6, 4, 4, 4, 6, 6, 10, 6]
 # The fall's last frames (14.3 on), the arms raised in surrender, are
@@ -65,10 +66,10 @@ SIDE = "my"
 
 # The two fencers' clothes: (shirt, sash, breeches, boots, hair).
 LOOKS = {
-    "my": {"shirt": (0.97, 0.96, 0.93), "sash": (0.55, 0.04, 0.03),
+    "my": {"shirt": (0.97, 0.96, 0.93), "sash": (0.9, 0.02, 0.015),
            "breeches": (0.06, 0.035, 0.02), "boots": (0.03, 0.025, 0.02),
            "hair": (0.22, 0.12, 0.05), "skin": (0.62, 0.40, 0.28)},
-    "he": {"shirt": (0.06, 0.30, 0.10), "sash": (0.30, 0.18, 0.06),
+    "he": {"shirt": (0.06, 0.30, 0.10), "sash": (0.9, 0.02, 0.015),
            "breeches": (0.02, 0.02, 0.025), "boots": (0.02, 0.018, 0.015),
            "hair": (0.03, 0.025, 0.02), "skin": (0.55, 0.35, 0.24)},
 }
@@ -81,6 +82,14 @@ NECKLINE = 1.42
 # The opponent's heads, one per scene (hehead1 the deck's, hehead2 the
 # alley's, hehead3 the fort's): what he wears on it.
 HEADS = {"head1": "kerchief", "head2": "hat", "head3": "morion"}
+# Their hair (human.HAIR): the player's long to the shoulders, the
+# opponent's from under what he wears on his head.
+HAIR = {"my": "long", "he": "under"}
+# The opponent's kerchief's knot and its two ends (human.py's rest:
+# metres from the knot, half sizes, tilts back and apart in degrees).
+KNOT = (("knot", (0, 0, 0), (0.022, 0.018, 0.018), (0, 0)),
+        ("end1", (0.012, 0.012, -0.05), (0.012, 0.004, 0.045), (-20, 15)),
+        ("end2", (-0.012, 0.016, -0.045), (0.012, 0.004, 0.04), (-25, -15)))
 
 
 def material(name, colour, rough=0.7, metal=0.0):
@@ -519,6 +528,12 @@ def swords(parent):
 
 
 GRIP_SHIFT = (-0.028, 0.0, 0.0)	# the grip from the hand bone, at rest
+# The sash's end, as the original's hangs by his back leg: its width and
+# thickness (metres), its top above the back hip, its bottom above the
+# deck; how far behind the hip joint it hangs, the body hiding its top
+# as in the original, swung out or not.
+SASH_TAIL = (0.04, 0.006, 0.05, 0.2)
+TAIL_BEHIND = 0.02
 
 
 class HumanFencer(Fencer):
@@ -535,7 +550,7 @@ class HumanFencer(Fencer):
         look = LOOKS[side]
         self.layers = {"body": [], "weapon": {}, "wounds": {}, "heads": {}}
         rob, meshes = human.build(look, kerchief=None, loose=BAGGY,
-                                   neckline=NECKLINE)
+                                   neckline=NECKLINE, style=HAIR[side])
         body = meshes[0]
         self.rob = self.root = rob
         self.j = {}
@@ -543,8 +558,11 @@ class HumanFencer(Fencer):
         # The sword's grip, from the sword hand, turned by "blade".
         bpy.context.view_layer.objects.active = rob
         bpy.ops.object.mode_set(mode="EDIT")
-        # In the closed hand: at the palm, below the knuckles.
-        hand = rob.data.edit_bones["hand.R"]
+        # In the closed hand: at the palm, below the knuckles; the left
+        # one when he is fitted to the original's frontal stance
+        # (human.pose()'s straddle).
+        self.hand = "L" if TRACE else "R"
+        hand = rob.data.edit_bones["hand." + self.hand]
         g = rob.data.edit_bones.new("grip")
         g.head = hand.head + (hand.tail - hand.head) * 0.7
         g.tail = g.head + Vector((0, 0, -0.06))
@@ -555,6 +573,11 @@ class HumanFencer(Fencer):
         if side == "he":
             self.split_heads(body, look)
         self.layers["body"].append(body)
+        self.layers["body"] += human.worn(rob)
+        self.tail = self.sash_tail()
+        self.layers["body"].append(self.tail)
+        if side != "he":		# his hair is on his heads
+            self.layers["body"] += human.strands(rob)
         # The blades, built at the grip's rest place, then carried by it.
         bpy.context.view_layer.update()
         grip_at = rob.matrix_world @ rob.data.bones["grip"].head_local
@@ -563,12 +586,58 @@ class HumanFencer(Fencer):
         self.j = {}
         self.layers["weapon"] = swords(tmp)
         bpy.context.view_layer.update()
+        # Each piece's place about the grip, for the sword let go.
+        self.rest = {ob: tmp.matrix_world.inverted() @ ob.matrix_world
+                     for parts in self.layers["weapon"].values()
+                     for ob in parts}
         for parts in self.layers["weapon"].values():
             for ob in parts:
                 self.carry(ob, "grip")
+        self.held = {ob: ob.matrix_basis.copy() for ob in self.rest}
+        # The hilt's place about the grip bone, and the longsword's tip
+        # about the hilt (the original's weapon layer traced is its
+        # sword), for fit().
+        g = rob.matrix_world @ rob.data.bones["grip"].matrix_local
+        self.hilt = g.inverted() @ tmp.matrix_world
+        inv = tmp.matrix_world.inverted()
+        self.tip = max((inv @ ob.matrix_world @ v.co
+                        for ob in self.layers["weapon"]["sword"]
+                        for v in ob.data.vertices), key=lambda v: v.length)
         bpy.data.objects.remove(tmp, do_unlink=True)
         self.j.pop("grip", None)
         self.wounds_on_body()
+
+    def sash_tail(self):
+        """The sash's end, a band hanging from its knot: a box one
+        metre long, set in place by hang()."""
+        import bmesh
+        me = bpy.data.meshes.new("sash-tail")
+        bm = bmesh.new()
+        bmesh.ops.create_cube(bm, size=1.0)
+        for v in bm.verts:
+            v.co = Vector((v.co.x * SASH_TAIL[0], v.co.y * SASH_TAIL[1],
+                           v.co.z - 0.5))
+        bm.to_mesh(me)
+        bm.free()
+        # Plain, in the sash's red: the band has no texture coordinates.
+        me.materials.append(materials.pbr("sash-tail", None,
+                                          LOOKS[self.side]["sash"], 0.8))
+        ob = bpy.data.objects.new("sash-tail", me)
+        bpy.context.collection.objects.link(ob)
+        return ob
+
+    def hang(self, end=None):
+        """The sash's end hanging from behind his back hip (TAIL_BEHIND):
+        swung across the picture to "end" (world) as the traced original's
+        is, else straight down to SASH_TAIL[3] above the deck."""
+        bpy.context.view_layer.update()
+        hip = self.joints()["back-hip"]
+        top = Vector((hip.x, hip.y + TAIL_BEHIND, hip.z + SASH_TAIL[2]))
+        d = Vector((end[0], 0, end[2])) - Vector((top.x, 0, top.z)) \
+            if end else Vector((0, 0, SASH_TAIL[3] - top.z))
+        self.tail.location = top
+        self.tail.rotation_euler = (0, math.atan2(-d.x, -d.z), 0)
+        self.tail.scale = (1, 1, max(0.05, d.length))
 
     def carry(self, ob, bone):
         """Parent "ob" to the rig's "bone", where it is now."""
@@ -580,11 +649,35 @@ class HumanFencer(Fencer):
         bpy.context.view_layer.update()
         ob.matrix_world = mw
 
+    def knot(self, name, m, body):
+        """The kerchief's knot at the back of the head, low, and its two
+        ends hanging from it a little apart (KNOT), in material "m",
+        carried by the head."""
+        import human
+        c, r = human._skull(body.data)
+        at = Vector((c.x, c.y + r.y * 0.9, c.z - r.z * 0.45))
+        out = []
+        for part, off, size, tilt in KNOT:
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=8)
+            ob = bpy.context.active_object
+            ob.name = "%s-knot-%s" % (name, part)
+            turn = Euler((math.radians(tilt[0]), 0, math.radians(tilt[1])))
+            ob.matrix_world = body.matrix_world @ \
+                Matrix.Translation(at + Vector(off)) @ \
+                turn.to_matrix().to_4x4() @ Matrix.Diagonal((*size, 1))
+            ob.data.materials.append(m)
+            for f in ob.data.polygons:
+                f.use_smooth = True
+            self.carry(ob, "head")
+            out.append(ob)
+        return out
+
     def split_heads(self, body, look):
         """The opponent's heads, one per scene: each a copy of his whole
         body, all but the head clear, a hair proud of it so it is drawn
         over his body's own head; with its headwear.  Nothing is cut, so
         there is no seam and the strands stay on."""
+        import human
         clear = bpy.data.materials.new("clear")
         clear.use_nodes = True
         nt = clear.node_tree
@@ -607,14 +700,14 @@ class HumanFencer(Fencer):
                     f.material_index = ci
             for v in me.vertices:
                 v.co += v.normal * 0.0015
-            parts = [h]
+            parts = [h] + human.strands(self.rob)
             if wear == "kerchief":
                 # Under the kerchief, no hair standing through it.
                 for mod in list(h.modifiers):
                     if mod.name == "hair-hair":
                         h.modifiers.remove(mod)
                 m = materials.pbr(name + "-kerchief", "wool",
-                                  (0.55, 0.05, 0.04), 0.85)
+                                  (0.025, 0.025, 0.03), 0.85)
                 me.materials.append(m)
                 k = len(me.materials) - 1
                 for f in me.polygons:
@@ -623,6 +716,9 @@ class HumanFencer(Fencer):
                     cy = sum(p.y for p in c) / len(c)
                     if cz > 1.6 or (cz > 1.53 and cy > 0.0):
                         f.material_index = k
+                # Bare under it, as the original's: no hair, no beard,
+                # only its knot at the back of the head.
+                parts = [h] + self.knot(name, m, body)
             else:
                 tmp = joint(name + "-rest", None, (0, -0.02, 1.33))
                 for ob in Fencer.headwear(self, name, wear, tmp):
@@ -687,13 +783,325 @@ class HumanFencer(Fencer):
 
     def pose(self, p):
         import human
+        for ob, m in self.held.items():
+            ob.matrix_basis = m
+        self.pose_rig(p)
+        if p.get("straddle"):
+            self.look(p.get("look", LOOK))
+        if not p.get("placed"):
+            human.ground(self.rob)
+        self.hang(p.get("tail"))
+        if p.get("free"):
+            self.free(p["free"])
+        elif p.get("let_go"):
+            self.let_go(p["let_go"])
+
+    def pose_rig(self, p):
+        """The rig alone in pose "p", the blade turned in the hand."""
+        import human
         human.pose(self.rob, at(p, twist=p.get("twist", 0) + TWIST),
                    180 if self.side == "my" else 0)
         g = self.rob.pose.bones["grip"]
         axis = g.bone.matrix_local.to_3x3().inverted() @ Vector((1, 0, 0))
         g.rotation_mode = "AXIS_ANGLE"
         g.rotation_axis_angle = (-math.radians(p.get("blade", 0.0)), *axis)
-        human.ground(self.rob)
+
+    def look(self, a):
+        """The head turned about its length so that the face looks "a"
+        degrees from the viewer toward the opponent (away from him if
+        negative), whatever the chest's twist."""
+        pb = self.rob.pose.bones["head"]
+        front = pb.bone.matrix_local.to_3x3().inverted() @ Vector((0, -1, 0))
+        ahead = -1 if self.side == "my" else 1
+
+        def yaw(a):
+            pb.rotation_mode = "QUATERNION"
+            pb.rotation_quaternion = Quaternion((0, 1, 0), math.radians(a))
+            bpy.context.view_layer.update()
+            f = (self.rob.matrix_world @ pb.matrix).to_3x3() @ front
+            return math.degrees(math.atan2(ahead * f.x, -f.y))
+        y0 = yaw(0)
+        slope = (yaw(30) - y0) / 30
+        yaw((a - y0) / slope)
+
+    def joints(self):
+        """The posed rig's joints and blade ends, in the world, by
+        trace.py's names, the figure straddling (human.pose()): the
+        limbs on the opponent's side "front-"."""
+        mw = self.rob.matrix_world
+        pb = self.rob.pose.bones
+
+        def head(b):
+            return mw @ pb[b].head
+        out = {"neck": head("neck"),
+               "nose": mw @ pb["head"].head.lerp(pb["head"].tail, 0.45)}
+        for limb, arm, leg in (("front", "L", "L"), ("back", "R", "R")):
+            out[limb + "-shoulder"] = head("upper." + arm)
+            h = pb["hand." + arm]	# its palm, toward the body's middle
+            out[limb + "-palm"] = (mw @ h.matrix).to_3x3() @ (
+                h.bone.matrix_local.to_3x3().inverted() @
+                Vector((-1 if arm == "L" else 1, 0, 0)))
+            b = pb["upper." + arm]
+            out[limb + "-arm-back"] = (mw @ b.matrix).to_3x3() @ (
+                b.bone.matrix_local.to_3x3().inverted() @ Vector((0, 1, 0)))
+            out[limb + "-elbow"] = head("fore." + arm)
+            out[limb + "-wrist"] = head("hand." + arm)
+            out[limb + "-hand"] = mw @ pb["fingers." + arm].tail
+            out[limb + "-hip"] = head("thigh." + leg)
+            out[limb + "-knee"] = head("shin." + leg)
+            out[limb + "-ankle"] = head("foot." + leg)
+            out[limb + "-toe"] = mw @ pb["foot." + leg].tail
+        hilt = mw @ pb["grip"].matrix @ self.hilt
+        out["hilt"] = hilt.translation
+        out["tip"] = hilt @ self.tip
+        return out
+
+    def fit(self, t, start, hold=None):
+        """The pose putting this figure's joints and blade where the
+        traced frame "t" (trace.py) has the original's, seen by the
+        camera, from pose "start" (the last frame's, so that the fit
+        moves on from it); the angles in "hold" kept as given."""
+        hold = hold or {}
+        h = t["height"]
+        pts = {k: v[:2] for k, v in t["points"].items() if v[2] >= FIT_SURE}
+        blade = t["blade"]
+        ahead = -1 if self.side == "my" else 1	# toward the opponent
+
+        def far(a, b):
+            return math.hypot(a[0] - b[0], a[1] - b[1])
+        # The traced chains: the arm whose hand is at the hilt holds the
+        # sword, without one the arm on the opponent's side is the front
+        # one (else the arms cross); the leg out toward the opponent too.
+        arms = [c for c in "rl" if c + "-wrist" in pts]
+        sword = min(arms, key=lambda c: far(pts[c + "-wrist"], blade[0])) \
+            if blade and arms else None
+        held = sword is not None and \
+            far(pts[sword + "-wrist"], blade[0]) < FIT_HOLD
+        if not held:
+            ends = [c for c in "rl" if c + "-shoulder" in pts]
+            sword = max(ends, key=lambda c: ahead *
+                        pts[c + "-shoulder"][0]) if ends else \
+                ("r" if self.side == "my" else "l")
+        legs = [c for c in "rl" if c + "-ankle" in pts]
+        front = max(legs, key=lambda c: ahead * pts[c + "-ankle"][0]) \
+            if legs else "l"
+        chain = {"front": {"arm": sword, "leg": front},
+                 "back": {"arm": "l" if sword == "r" else "r",
+                          "leg": "l" if front == "r" else "r"}}
+        # Of the hands hold opens, those raised above their shoulder: the
+        # others stay fists (one held to the chest, its tip found across
+        # the shirt).
+        opened = {}
+        for limb in ("front", "back"):
+            c = chain[limb]["arm"]
+            tip, top = pts.get(c + "-hand"), pts.get(c + "-shoulder")
+            opened[limb] = bool(hold.get("open")) and bool(tip and top) \
+                and tip[1] < top[1]
+        want = {}
+        for name, w in FIT_WEIGHTS.items():
+            if name in ("neck", "nose"):
+                key = name
+            elif name in ("hilt", "tip"):
+                if held:
+                    want[name] = (blade[name == "tip"], w)
+                continue
+            else:
+                limb, joint = name.split("-", 1)
+                # The open hands reached for by their tips, the pose
+                # model marking their wrists down the forearm; the fists
+                # by their wrists.
+                if (joint == "hand") != opened[limb] and \
+                        joint in ("hand", "wrist"):
+                    continue
+                part = "leg" if joint in ("hip", "knee", "ankle", "toe") \
+                    else "arm"
+                key = chain[limb][part] + "-" + joint
+            if key in pts:
+                want[name] = (pts[key], w)
+        s = FRAME_M / 141
+
+        def seen(v):
+            return ((v.x - CAMERA_X[SIDE]) / s + 70.5, h - (v.z + 0.04) / s)
+
+        def cost(p):
+            self.pose_rig(p)
+            bpy.context.view_layer.update()
+            got = self.joints()
+            e = sum(w * far(seen(got[n]), at_) ** 2
+                    for n, (at_, w) in want.items())
+            # The picture shows no depth: the hands kept from going
+            # behind him (away from the camera, +Y), the arms across
+            # the picture rather than at the camera (but the sword's
+            # forearm, the blade foreshortened as the original's is),
+            # the back of each upper arm never turned to it.
+            for n in ("front-wrist", "back-wrist", "front-elbow",
+                      "back-elbow"):
+                d = got[n].y - got["neck"].y - FIT_BEHIND
+                if d > 0:
+                    e += FIT_DEPTH * d * d
+            for (limb, a, b), flat in tilt.items():
+                v = (got[limb + "-" + b] - got[limb + "-" + a])
+                d = abs(v.normalized().y) - flat
+                if d > 0:
+                    e += FIT_TILT * d * d
+            if held:	# a sword held thumb up, not on an open palm
+                d = got["front-palm"].z - FIT_PALM
+                if d > 0:
+                    e += FIT_TILT * d * d
+            for limb in ("front", "back"):
+                d = -got[limb + "-arm-back"].y - FIT_FLAT
+                if d > 0:
+                    e += FIT_TILT * d * d
+            # Kept near the last frame's pose, so it moves smoothly.
+            return e + FIT_KEEP * sum(
+                ((p[k] - start.get(k, 0.0)) / FIT_STEP[k]) ** 2
+                for k in FIT_STEP)
+
+        hidden = [ob for ob in bpy.data.objects
+                  if ob.type != "ARMATURE" and not ob.hide_viewport]
+        for ob in hidden:
+            ob.hide_viewport = True
+        p = at(start, straddle=True, turn=TURN, placed=True,
+               twist=start.get("twist", -TWIST),
+               grip=100 if held else 10)
+        p.pop("free", None)
+        p.pop("let_go", None)
+        for k in list(CRY) + ["look", "front-open", "back-open"]:
+            p.pop(k, None)
+        for k in FIT_STEP:
+            p.setdefault(k, 0.0)
+        p.update(hold)
+        if "open" in p:
+            p.update({k + "-open": v for k, v in opened.items()})
+        # How far each arm bone may point out of the picture: as far
+        # as the original draws it shorter than its full length (a fist
+        # held out at the viewer), FIT_FLAT where it is drawn full.
+        tilt = {}
+        for limb in ("front", "back"):
+            c = chain[limb]["arm"]
+            for a, b in (("shoulder", "elbow"), ("elbow", "wrist")):
+                if held and limb == "front" and a == "elbow":
+                    continue	# the blade foreshortened as drawn
+                ta, tb = pts.get(c + "-" + a), pts.get(c + "-" + b)
+                shown = far(ta, tb) / drawn_length(a, b) if ta and tb \
+                    else 1.0
+                tilt[(limb, a, b)] = min(FIT_FLAT_MAX, max(
+                    FIT_FLAT, math.sqrt(max(0.0, 1 - shown * shown)) +
+                    FIT_FLAT_SLACK))
+        limits = dict(FIT_LIMITS)
+        if held:
+            # The sword hand's knuckles kept up: rolled further, the
+            # blade hangs under an open palm.
+            limits["front-roll"] = FIT_GRIP_ROLL
+            low, high = FIT_GRIP_ROLL
+            if not low <= p["front-roll"] <= high:
+                p["front-roll"] = (low + high) / 2
+
+        def fit_keys(keys):
+            return descend(p, [k for k in keys if k not in hold], cost,
+                           limits)
+        for keys in FIT_STAGES[:2]:
+            p = fit_keys(keys)
+        p = fit_keys(("neck",))
+        # Each arm from a few rolls, the best kept: a hand raised needs
+        # the elbow's bend turned up, which no small step finds.  The
+        # sword arm only from its last roll, which stays in its range.
+        for limb in ("front", "back"):
+            keys = [k for k in FIT_STEP if k.startswith(limb + "-") and
+                    k.split("-", 1)[1] in FIT_ARM] + \
+                (["blade"] if limb == "front" else [])
+            rolls = (p[limb + "-roll"],) if held and limb == "front" \
+                else (p[limb + "-roll"], -80, 80)
+            tries = [descend(at(p, **{limb + "-roll": r}), keys, cost,
+                             limits) for r in rolls]
+            p = min(tries, key=cost)
+        p = fit_keys(FIT_STAGES[-1])
+        for ob in hidden:
+            ob.hide_viewport = False
+        for leg in ("front", "back"):
+            p[leg + "-ankle"] = -(p[leg + "-hip"] + p[leg + "-knee"])
+        p.pop("tail", None)
+        if t.get("tail"):
+            p["tail"] = list(self.world(*t["tail"], h, s))
+        if not held:
+            if blade:
+                p["free"] = [list(self.world(x, y, h, s)) for x, y in blade]
+            else:
+                p["free"] = "gone"
+        return p
+
+    def world(self, x, y, h, s):
+        """The point of the picture at frame pixel (x, y), in the
+        fencer's plane."""
+        return Vector((CAMERA_X[SIDE] + (x - 70.5) * s, 0.0,
+                       (h - y) * s - 0.04))
+
+    def free(self, ends):
+        """The sword out of his hand, its hilt and point at "ends"
+        (world), or "gone" out of the picture."""
+        flip = Matrix.Diagonal((-1 if self.side == "my" else 1, 1, 1, 1))
+        if ends == "gone":
+            m = Matrix.Translation((0, 0, -50))
+        else:
+            hilt, tip = (flip @ Vector(v) for v in ends)
+            q = self.tip.normalized().rotation_difference(
+                (tip - hilt).normalized())
+            m = flip @ Matrix.Translation(hilt) @ q.to_matrix().to_4x4()
+        for ob in self.rest:
+            ob.matrix_world = m @ self.rest[ob]
+
+    def let_go(self, t):
+        """The sword dropped: "t" of the way from the hand (1 and past:
+        landed), tossed a little up and turning over, to lying on the
+        deck where his front foot stood, its point back under his
+        stance (not under his opponent's) and its flat tilted to the
+        view."""
+        bpy.context.view_layer.update()
+        # Worked out facing right: the player's figure is mirrored.
+        flip = Matrix.Diagonal((-1 if self.side == "my" else 1, 1, 1, 1))
+        first = next(iter(self.rest))
+        hand = flip @ first.matrix_world @ self.rest[first].inverted()
+        # The deck: the soles' lowest point, the body as posed.
+        ev = self.layers["body"][0].evaluated_get(
+            bpy.context.evaluated_depsgraph_get())
+        floor = min((ev.matrix_world @ Vector(c)).z for c in ev.bound_box)
+        # Lying: the blade (the grip's -Z) along the fight's line,
+        # pointing back, its flat (the grip's Y) LIE_FLAT degrees up from
+        # facing the view.
+        a = math.radians(LIE_FLAT)
+        z = Vector((1, 0, 0))
+        y = Vector((0, -math.cos(a), math.sin(a)))
+        lie = Matrix((y.cross(z), y, z)).transposed().to_4x4()
+        # Where his front foot stood on guard, so it stays put while he
+        # steps back from it.
+        lie.translation = (STANCE["front"] + LIE_AHEAD, -LIE_NEAR, floor)
+        # Landed, it bounces: its hilt kicks up off the deck, the point
+        # staying on it, a little less each frame.
+        after = round((t - 1) * FALLING) if t > 1 else 0
+        rock = math.radians(LIE_ROCK[after - 1]) \
+            if 0 < after <= len(LIE_ROCK) else 0.0
+        t = min(t, 1.0)
+        q = hand.to_quaternion().slerp(lie.to_quaternion(), t)
+        for parts in self.layers["weapon"].values():
+            # Each blade's lowest point on the deck.
+            low = min((lie @ self.rest[ob] @ Vector(c)).z
+                      for ob in parts for c in ob.bound_box)
+            where = hand.translation.lerp(
+                lie.translation + Vector((0, 0, floor - low)), t)
+            where.z += LIE_TOSS * math.sin(math.pi * t)
+            m = q.to_matrix().to_4x4()
+            m.translation = where
+            if rock:
+                # About the point, the blade's end farthest back (-X).
+                tip = min((m @ self.rest[ob] @ Vector(c)).x
+                          for ob in parts for c in ob.bound_box)
+                pivot = Vector((tip, where.y, floor))
+                m = Matrix.Translation(pivot) @ \
+                    Matrix.Rotation(-rock, 4, "Y") @ \
+                    Matrix.Translation(-pivot) @ m
+            m = flip @ m
+            for ob in parts:
+                ob.matrix_world = m @ self.rest[ob]
 
 
 # The key poses.  Angles: the shoulders and elbows of each arm, the spine
@@ -705,7 +1113,7 @@ class HumanFencer(Fencer):
 GUARD = {"hips": 0.86, "spine": 6, "neck": -6,
          "front-shoulder": 72, "front-elbow": 18, "front-wrist": 0,
          "blade": 5, "back-shoulder": -45, "back-elbow": 25,
-         "back-wrist": 20}
+         "back-wrist": 20, "grip": 100}
 # The guard's stance: the ankles this far ahead of the hips (the back
 # one behind), the hips this share of a straight leg above them: low and
 # wide, so that every move carries the whole body.
@@ -716,6 +1124,166 @@ HEEL = 10
 # viewer, so that the shirt shows broad; the hips and legs stay side on,
 # the stance spread across the picture.
 TWIST = -40
+# The sword let go in the surrender lies on the deck, its hilt this far
+# (metres) ahead of where his front foot stood on guard, nearer the view
+# than he is, its flat this
+# many degrees up from facing the view; tossed this high on its way.
+LIE_AHEAD, LIE_NEAR, LIE_FLAT, LIE_TOSS = 0.1, 0.3, 35, 0.25
+# The hilt's kick off the deck (degrees, about the point) on the frames
+# after the dropped sword lands.
+LIE_ROCK = (14, 5)
+# The fall's frame the sword leaves the hand after, and how many frames
+# it takes to reach the deck.
+LET_GO, FALLING = 2, 3
+# Once it has, he cries out with his hands up: the mouth open, the
+# fingers spread straight from unbent wrists, as the original's.
+CRY = {"mouth": 1.0, "open": True, "front-wrist": 0.0, "back-wrist": 0.0}
+# On these frames of the fall (first, last), he turns his head to watch
+# it fly off behind him, then back to his opponent.
+WATCH = {"my": (4, 6), "he": (4, 7)}
+
+
+def crying(k):
+    """The fall's frame k as CRY has it, the head turned back on WATCH's;
+    nothing before the sword is let go."""
+    if k <= LET_GO:
+        return {}
+    first, last = WATCH[SIDE]
+    return dict(CRY, look=-LOOK) if first <= k <= last else dict(CRY)
+
+
+# The traced original (trace.py, --trace): each frame's joints and
+# blade, by "MOVE.FRAME"; the figure fitted to them (HumanFencer.fit()),
+# its hips turned this many degrees toward the viewer, its legs bent
+# out across the picture as the original's are.
+TRACE = {}
+DRAWN = {}	# drawn_length()'s, by joints
+TURN = 80
+# His head turned this many degrees from the viewer toward the opponent.
+LOOK = 40
+FIT_SURE = 0.3		# the pose model's confidence a joint is fitted from
+FIT_HOLD = 10		# the hand this near the hilt (pixels) holds it
+# How much each point counts.
+FIT_WEIGHTS = {"neck": 1.0, "hilt": 3.0, "tip": 2.0,
+               "front-shoulder": 1.0, "front-elbow": 1.0,
+               "front-wrist": 1.0, "back-shoulder": 1.0,
+               "back-elbow": 1.0, "back-wrist": 1.0, "front-hip": 1.0,
+               "front-knee": 1.0, "front-ankle": 2.0, "front-toe": 0.5,
+               "back-hip": 1.0, "back-knee": 1.0, "back-ankle": 2.0,
+               "back-toe": 0.5, "front-hand": 2.0, "back-hand": 2.0}
+# Each fitted angle's or place's first step (degrees, metres); and how
+# much a step away from the last frame's pose costs, in squared pixels.
+FIT_STEP = {"x": 0.03, "hips": 0.03, "twist": 4, "spine": 6, "neck": 6,
+            "front-hip": 8, "front-knee": 8, "back-hip": 8,
+            "back-knee": 8, "front-shoulder": 10, "front-spread": 10,
+            "front-elbow": 10, "front-wrist": 10, "front-turn": 10,
+            "blade": 10,
+            "back-shoulder": 10, "back-spread": 10, "back-elbow": 10,
+            "front-roll": 15, "back-roll": 15}
+FIT_KEEP = 0.5
+# How far behind his neck (metres) a hand or elbow may go, and what each
+# square metre past it costs, in squared pixels.
+FIT_BEHIND, FIT_DEPTH = 0.05, 2e4
+# How far an arm's bone may point at or away from the camera (the sine
+# of its angle out of the picture), and the cost of each unit past it
+# squared, in squared pixels; the same for the back of an upper arm
+# turning to the camera.  A bone the original draws short may point out
+# as far as that shortening says, and this much (sine) further, but
+# never past FIT_FLAT_MAX: a forearm end on hides its hand in the cuff.
+FIT_FLAT, FIT_TILT, FIT_FLAT_SLACK, FIT_FLAT_MAX = 0.5, 2e4, 0.15, 0.8
+# How far up (the sine) the sword hand's palm may face, at FIT_TILT's
+# cost past it.
+FIT_PALM = 0.3
+# The joints' reach (degrees): knees bend only forward, elbows a little
+# past straight at most; the chest never turned so far that he shows
+# his back, the head bent at most a little back (the pose model's nose
+# is the face's, not the head's middle: fitted, it tipped him to look up).
+FIT_LIMITS = {"front-knee": (-150, 0), "back-knee": (-150, 0),
+              "front-elbow": (-10, 150), "back-elbow": (-10, 150),
+              "twist": (20, 80), "spine": (-5, 20), "neck": (-5, 30),
+              "front-roll": (-120, 120), "back-roll": (-120, 120),
+              "front-turn": (-90, 90)}
+# The sword arm's roll while it holds the sword.
+FIT_GRIP_ROLL = (-90, 90)
+# The chest's twist, once each frame of a move is fitted, averaged with
+# its neighbours' with these weights (the pose model's shoulders jitter),
+# the frames fitted again with it held.
+FIT_SMOOTH = (1, 2, 1)
+# An arm's fitted joints.
+FIT_ARM = ("shoulder", "spread", "elbow", "wrist", "roll", "turn")
+# Fitted in turns: the body's place and lean, the legs, the arms and
+# blade, then all together.
+FIT_STAGES = [("x", "hips", "twist", "spine"),
+              ("front-hip", "front-knee", "back-hip", "back-knee"),
+              ("neck", "front-shoulder", "front-spread", "front-elbow",
+               "front-wrist", "front-turn", "blade", "back-shoulder",
+               "back-spread",
+               "back-elbow", "front-roll", "back-roll"),
+              tuple(FIT_STEP)]
+
+
+def descend(p, keys, cost, limits=FIT_LIMITS, sweeps=40):
+    """Pose "p" changed along "keys", one at a time, while "cost"
+    falls, each step halved when none helps, within "limits"."""
+    step = {k: FIT_STEP[k] for k in keys}
+    best = cost(p)
+    for _ in range(sweeps):
+        moved = False
+        for k in keys:
+            for sign in (1, -1):
+                q = dict(p)
+                q[k] = p[k] + sign * step[k]
+                low, high = limits.get(k, (-1e9, 1e9))
+                if not low <= q[k] <= high:
+                    continue
+                e = cost(q)
+                if e < best:
+                    p, best, moved = q, e, True
+                    break
+        if not moved:
+            step = {k: v / 2 for k, v in step.items()}
+            if all(step[k] < FIT_STEP[k] / 16 for k in keys):
+                break
+    return p
+
+
+def drawn_length(a, b):
+    """An arm bone's full length (joints "a" to "b") as the original
+    draws it, pixels: its length across the picture in most traced
+    frames, either arm, shorter only where it points at the viewer."""
+    key = (a, b)
+    if key not in DRAWN:
+        got = sorted(math.hypot(q[c + "-" + a][0] - q[c + "-" + b][0],
+                                q[c + "-" + a][1] - q[c + "-" + b][1])
+                     for t in TRACE.values() for q in [t["points"]]
+                     for c in "rl" if c + "-" + a in q and c + "-" + b in q
+                     and min(q[c + "-" + a][2], q[c + "-" + b][2]) >=
+                     FIT_SURE)
+        DRAWN[key] = got[int(len(got) * 0.9)] if got else 1e9
+    return DRAWN[key]
+
+
+def smoothed(f, move, frames, start):
+    """The traced frames of "move" fitted (HumanFencer.fit()) from pose
+    "start", by frame: twice, the second time with the chest's twist
+    smoothed over the move (FIT_SMOOTH); crying out once the sword is
+    let go (CRY)."""
+    traced = [k for k in frames if "%d.%d" % (move, k) in TRACE]
+    cry = {k: crying(k) if move == TALL_MOVE else {} for k in traced}
+    first, last = {}, start
+    for k in traced:
+        last = first[k] = f.fit(TRACE["%d.%d" % (move, k)], last,
+                                cry[k])
+    out, last = {}, start
+    for i, k in enumerate(traced):
+        near = [(w, first[traced[j]]["twist"])
+                for w, j in zip(FIT_SMOOTH, range(i - 1, i + 2))
+                if 0 <= j < len(traced)]
+        twist = sum(w * v for w, v in near) / sum(w for w, _ in near)
+        last = out[k] = f.fit(TRACE["%d.%d" % (move, k)], last,
+                              dict(cry[k], twist=twist))
+        print("fit %d.%d" % (move, k), flush=True)
+    return out
 
 
 def at(base, **changes):
@@ -911,12 +1479,43 @@ def move_pose(move, k):
     elif move == 14:			# the fall: struck, then yielding
         hit = at(g, _hip=-0.08, _drop=0.04, spine=-22, neck=-15, **{
             "front-shoulder": 20, "front-elbow": 10, "blade": 40})
-        # Yielding: upright, both hands up by the head, elbows bent (a
-        # real shoulder lifted straight up crushes the neck on the body).
-        up = at(hit, _drop=-0.06, spine=0, neck=0, **{
-            "front-shoulder": 135, "front-elbow": 55, "back-shoulder": 130,
-            "back-elbow": 55, "blade": 120})	# the sword hanging
-        p = keyed([g, hit, hit, up, up, up, up, up, up, up], n, k)
+        # Reeling back from the blow, the front foot drawn in, the sword
+        # sagging and the free arm thrown out for balance.
+        reel = at(hit, _hip=-0.15, _front=-0.12, _lift=0.04, _drop=0.06,
+                  spine=-28, neck=-18, **{
+                      "front-shoulder": 5, "front-elbow": 30, "blade": 65,
+                      "back-shoulder": -75, "back-elbow": 45})
+        # The sword flung from the opening hand.
+        fling = at(reel, _front=-0.08, _lift=0.0, _drop=0.02, spine=-10,
+                   neck=-6, grip=40, **{
+                       "front-shoulder": 120, "front-elbow": 35,
+                       "blade": 90, "back-shoulder": 30, "back-elbow": 70,
+                       "back-spread": 25})
+        # Yielding, the open hands up and stepping back from his sword:
+        # the near hand raised high toward the opponent (spread, it
+        # would cross the face) and waving, the far one at the chest,
+        # then both up and out; the body bobbing, the head turning.
+        def yielding(fs, fe, fw, bs, be, bsp, bw, hip, drop, spine, neck):
+            return at(fling, _hip=hip, _front=-0.10 + hip, _lift=0.0,
+                      _drop=drop, spine=spine, neck=neck, grip=10, **{
+                          "front-shoulder": fs, "front-elbow": fe,
+                          "front-wrist": fw, "back-shoulder": bs,
+                          "back-elbow": be, "back-spread": bsp,
+                          "back-wrist": bw})
+        p = keyed([g, hit, reel, fling,
+                   yielding(150, 25, 20, 35, 115, 0, 10,
+                            -0.06, -0.01, 4, -4),
+                   yielding(125, 60, -35, 60, 100, 15, 30,
+                            -0.10, -0.06, -4, 6),
+                   yielding(155, 10, 30, 30, 120, 0, 0,
+                            -0.12, -0.02, 6, -6),
+                   yielding(110, 80, -20, 125, 55, 45, 20,
+                            -0.14, -0.08, 0, 4),
+                   yielding(95, 100, 25, 105, 85, 55, -25,
+                            -0.15, -0.03, 3, -2)], n, k)
+        if k > LET_GO:
+            p["let_go"] = (k - LET_GO) / FALLING
+            p.update(crying(k))
     else:
         p = bob(g, n, k)			# the last: back on guard
     return plant(p, origin(move, k))
@@ -990,7 +1589,7 @@ def show(objects, holdouts):
     """Render only "objects", "holdouts" hiding what they cover."""
     shown = set(objects) | set(holdouts)
     for ob in bpy.data.objects:
-        if ob.type != "MESH":
+        if ob.type not in ("MESH", "CURVES"):
             continue
         ob.hide_render = ob not in shown
         ob.is_holdout = ob in holdouts
@@ -1012,6 +1611,8 @@ def main():
                     "each move")
     ap.add_argument("--strikes", help="JSON: the frame each attack "
                     "strikes on")
+    ap.add_argument("--trace", help="JSON: the original's traced frames "
+                    "(trace.py), the figure posed to match them")
     ap.add_argument("--moves", help="only these moves, e.g. 0,9")
     ap.add_argument("--layers", help="only these layers, e.g. body")
     ap.add_argument("--blend")
@@ -1030,6 +1631,9 @@ def main():
     if args.strikes:
         STRIKES.update({int(m): v for m, v in
                         json.loads(args.strikes).items()})
+    if args.trace:
+        with open(args.trace) as fp:
+            TRACE.update(json.load(fp))
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
     f = (Fencer if args.mannequin else HumanFencer)(args.side)
@@ -1058,10 +1662,16 @@ def main():
         passes = [q for q in passes if q[0] in args.layers.split(",")]
     moves = range(len(BANKS)) if not args.moves else \
         [int(v) for v in args.moves.split(",")]
+    last = plant(GUARD)
     for move in moves:
-        for k in ([BANKS[move] // 2] if args.sample else
-                  range(BANKS[move])):
-            f.pose(move_pose(move, k))
+        frames = [BANKS[move] // 2] if args.sample else range(BANKS[move])
+        fitted = smoothed(f, move, frames, last)
+        for k in frames:
+            if k in fitted:
+                last = fitted[k]
+                f.pose(last)
+            else:
+                f.pose(move_pose(move, k))
             frame_size(move, k)
             for name, objects, holdouts in passes:
                 show(objects, holdouts)

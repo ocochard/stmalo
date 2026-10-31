@@ -28,6 +28,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 import urllib.parse
@@ -1412,11 +1413,13 @@ def make_ship(args, spec, a, profile, seed):
                 open(script, "rb").read()).hexdigest()}
 
 
-def texture_workflow(spec, profile, seed, prompt, side, prefix):
-    """A square photographic texture from a prompt."""
+def texture_workflow(spec, profile, seed, prompt, side, prefix,
+                     styled=True):
+    """A square photographic texture from a prompt (in the pack's style
+    if "styled")."""
     p = PROFILES[profile]
     text = prompt.strip()
-    if spec["pack"].get("style"):
+    if styled and spec["pack"].get("style"):
         text += " " + spec["pack"]["style"].strip()
     g = {
         "unet": {"class_type": "UNETLoader", "inputs": {
@@ -1784,6 +1787,87 @@ def fencer_steps(pack):
     return frames, steps, strikes
 
 
+def fencer_fabrics(args, spec, a, profile, seed):
+    """The fencers' clothes' cloths, photographed by the image model
+    (each a close-up of the cloth alone, not in the pack's film style:
+    its blur and grain would smear the weave), made materials by
+    fencers/fabric.py and copied to the render host, where
+    materials.pbr() finds them; one already made from the same prompt
+    and seed is kept.  Returns what was made, for the provenance, or
+    None on failure."""
+    host = args.render_host
+    made = {}
+    fabrics = a["fencer"].get("fabrics", {})
+    if isinstance(fabrics, str):	# another fencer's: made with its seed
+        owner = next(o for o in spec["asset"] if o["id"] == fabrics)
+        fabrics, seed = owner["fencer"]["fabrics"], owner["seed"]
+    for n, (name, f) in enumerate(sorted(fabrics.items())):
+        s = seed + n
+        stamp = hashlib.sha256(json.dumps(
+            [f["prompt"].strip(), s, profile, f.get("rough", 0.75),
+             f.get("relief", 6.0)]).encode()).hexdigest()
+        lib = "$HOME/flibustier-cc0/flibustier-%s" % name
+        made[name] = {"prompt": f["prompt"].strip(), "seed": s}
+        try:
+            have = subprocess.run(
+                ["ssh", "-o", "BatchMode=yes", host,
+                 "cat %s/stamp 2>/dev/null" % lib], capture_output=True,
+                text=True, stdin=subprocess.DEVNULL).stdout.strip()
+            if have == stamp:
+                continue
+            free(args.server)
+            png = render(args.server, texture_workflow(
+                spec, profile, s, f["prompt"], f.get("size", 1024),
+                "flibustier/fabric-" + name, styled=False))
+            out = os.path.join(args.pack, "art", "fabric-" + name)
+            os.makedirs(out, exist_ok=True)
+            picture = os.path.join(out, "photo.png")
+            with open(picture, "wb") as fp:
+                fp.write(png)
+            subprocess.run([sys.executable, os.path.join(
+                HERE, "fencers", "fabric.py"), picture, out,
+                "flibustier-" + name, "--rough", str(f.get("rough", 0.75)),
+                "--relief", str(f.get("relief", 6.0))], check=True)
+            os.remove(picture)
+            with open(os.path.join(out, "stamp"), "w") as fp:
+                fp.write(stamp + "\n")
+            subprocess.run(["ssh", "-o", "BatchMode=yes", host,
+                            "mkdir -p %s" % lib], check=True,
+                           stdin=subprocess.DEVNULL)
+            subprocess.run(["scp", "-q"] + [
+                os.path.join(out, n) for n in sorted(os.listdir(out))] +
+                ["%s:%s/" % (host, lib.replace("$HOME/", ""))], check=True)
+            shutil.rmtree(out)
+        except (subprocess.CalledProcessError, RuntimeError) as e:
+            print("%s: fabric %s: %s" % (a["id"], name, e), file=sys.stderr)
+            return None
+    return made
+
+
+def fencer_trace(args, side, moves, work):
+    """The original fencer's frames traced (fencers/trace.py) from the
+    player's game data into "work", for fencer.py to pose its figure
+    the same way: the JSON's path, or None.  Never kept in the pack."""
+    binary = os.path.join(os.path.dirname(os.path.dirname(HERE)), "build",
+                          "flibustier")
+    if not os.path.exists(binary) or not args.data:
+        print("fencers: tracing needs the built flibustier and --data",
+              file=sys.stderr)
+        return None
+    out = os.path.join(work, "trace-%s.json" % side)
+    try:
+        subprocess.run([sys.executable, os.path.join(
+            HERE, "fencers", "trace.py"), "--flibustier", binary,
+            "--data", os.path.expanduser(args.data), "--server",
+            args.server, "--side", side, "--work", os.path.join(
+                work, "frames"), out] + (["--moves", ",".join(
+                    map(str, moves))] if moves else []), check=True)
+    except subprocess.CalledProcessError as e:
+        print("fencers: tracing failed: %s" % e, file=sys.stderr)
+        return None
+    return out
+
+
 def make_fencer(args, spec, a, profile, seed):
     """A fencer's sprite groups: its layers rendered by fencers/fencer.py
     on the render host, the body and heads redrawn as photographs (one
@@ -1802,27 +1886,35 @@ def make_fencer(args, spec, a, profile, seed):
     if table is None:
         return None
     shown, steps, strikes = table
+    fabrics = fencer_fabrics(args, spec, a, profile, seed)
+    if fabrics is None:
+        return None
+    tmp = tempfile.mkdtemp(prefix="flibustier-trace-")
     try:
+        trace = fencer_trace(args, side, moves, tmp)
+        if trace is None:
+            return None
         subprocess.run(["ssh", "-o", "BatchMode=yes", host,
                         "mkdir -p %s" % work], check=True,
                        stdin=subprocess.DEVNULL)
         fetch_library(host)
         subprocess.run(["scp", "-q", script,
                         os.path.join(HERE, "fencers", "human.py"),
-                        os.path.join(HERE, "materials.py"),
+                        os.path.join(HERE, "materials.py"), trace,
                         "%s:%s/" % (host, work)], check=True)
         subprocess.run(["ssh", "-o", "BatchMode=yes", host,
                         "cd %s && rm -rf out && blender -b -P fencer.py -- "
                         "--side %s --out out --frame %dx%d --margin %d "
                         "--steps '%s' --frames '%s' --strikes '%s' "
-                        "--blend model.blend %s "
-                        "> blender.log 2>&1" % (
+                        "--trace %s --blend model.blend %s "
+                        "> blender.log 2>&1; s=$?; rm -f %s; exit $s" % (
                             work, side, *fencer_size(0, 0, k, render=True),
                             FENCER_MARGIN,
                             *(json.dumps(v, separators=(",", ":"))
                               for v in (steps, shown, strikes)),
+                            os.path.basename(trace),
                             "--moves " + ",".join(map(str, moves))
-                            if moves else "")],
+                            if moves else "", os.path.basename(trace))],
                        check=True, stdin=subprocess.DEVNULL)
         if os.path.exists(local):
             shutil.rmtree(local)
@@ -1836,6 +1928,8 @@ def make_fencer(args, spec, a, profile, seed):
         print("%s: blender on %s failed: %s" % (a["id"], host, e),
               file=sys.stderr)
         return None
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     prefix = "flibustier/" + a["id"].replace("/", "-")
     frames = [(m, f) for m in (moves or range(len(FENCER_BANKS)))
               for f in range(FENCER_BANKS[m])]
@@ -1854,7 +1948,7 @@ def make_fencer(args, spec, a, profile, seed):
                 rw, rh = fencer_size(m, f, k, render=True)
                 rup = upload(args.server, os.path.join(
                     local, ref, "%d.%d.png" % (m, f)),
-                    "flibustier-fencer-ref.png")
+                    "flibustier-fencer-ref-%s.png" % side)
                 png = render(args.server, ship_frame_workflow(
                     spec, profile, seed, rup, prompt,
                     a.get("denoise", 0.6), rw, rh, prefix, (rw, rh)))
@@ -1868,12 +1962,13 @@ def make_fencer(args, spec, a, profile, seed):
             for m, f in frames:
                 fw, fh = fencer_size(m, f, k)
                 src = os.path.join(local, layer, "%d.%d.png" % (m, f))
-                up = upload(args.server, src, "flibustier-fencer.png")
+                up = upload(args.server, src,
+                            "flibustier-fencer-%s.png" % side)
                 if ref:
                     # Cut from its photograph to its own render's outline.
                     pup = upload(args.server, os.path.join(
                         local, "%s-photo-%d.%d.png" % (ref, m, f)),
-                        "flibustier-photo.png")
+                        "flibustier-photo-%s.png" % side)
                     png = render(args.server, outline_workflow(
                         pup, up, fw, fh, prefix + "-cut",
                         -9 if layer == "body" else 3))
@@ -1883,8 +1978,9 @@ def make_fencer(args, spec, a, profile, seed):
                 path = os.path.join(local, "%s-%d.%d.png" % (layer, m, f))
                 with open(path, "wb") as fp:
                     fp.write(png)
-                out[(m, f)] = upload(args.server, path,
-                                     "flibustier-frame-%d-%d.png" % (m, f))
+                out[(m, f)] = upload(
+                    args.server, path,
+                    "flibustier-frame-%s-%d-%d.png" % (side, m, f))
             # The atlas: move m on row m, frame f in column f.
             cols = max(FENCER_BANKS)
             fw = fencer_size(0, 0, k)[0]
@@ -1942,7 +2038,10 @@ def make_fencer(args, spec, a, profile, seed):
             "denoise": a.get("denoise", 0.6),
             "blend": "provenance/fencers/%s.blend" % side,
             "model_sha256": hashlib.sha256(open(script, "rb").read())
-            .hexdigest(), "frames": shown, "steps": steps}
+            .hexdigest(), "poses": "fitted at render time to the frames "
+            "traced from the player's own game data (fencers/trace.py)",
+            "frames": shown, "steps": steps,
+            "fabrics": fabrics}
 
 
 def frame_bounds(path, asset, height):

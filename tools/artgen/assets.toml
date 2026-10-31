@@ -2093,6 +2093,48 @@ sword = ["grp/mysword", "art/mysword.sheet"]
 head = ["grp/myhead", "art/myhead.sheet"]
 chest = ["grp/mychest", "art/mychest.sheet"]
 legs = ["grp/mylegs", "art/mylegs.sheet"]
+# The cloths of their clothes, photographed close up and made to tile
+# (artgen.py, fencer_fabrics()); their colour is the fencer's own, only
+# the cloth's light and dark kept.  "rough" its roughness, "relief" how
+# far its weave stands out.
+[asset.fencer.fabrics.shirt]
+rough = 0.85
+relief = 5.0
+prompt = """
+Macro photograph, straight down, of plain undyed white linen cloth laid
+perfectly flat, filling the whole image edge to edge: a fine even plain
+weave of slightly irregular slubbed threads, soft and matte. Evenly lit
+from above, no folds, no creases, no seams, no shadows, uniform focus
+across the whole image.
+"""
+[asset.fencer.fabrics.sash]
+rough = 0.45
+relief = 3.0
+prompt = """
+Macro photograph, straight down, of plain silk satin cloth laid perfectly
+flat, filling the whole image edge to edge: a smooth glossy fine twill
+weave with a soft sheen. Evenly lit from above, no folds, no creases, no
+seams, uniform focus across the whole image.
+"""
+[asset.fencer.fabrics.breeches]
+rough = 0.9
+relief = 7.0
+prompt = """
+Macro photograph, straight down, of heavy plain wool broadcloth laid
+perfectly flat, filling the whole image edge to edge: a dense felted
+weave with a faint fuzz of fibres, matte. Evenly lit from above, no
+folds, no creases, no seams, uniform focus across the whole image.
+"""
+[asset.fencer.fabrics.boots]
+rough = 0.4
+relief = 4.0
+prompt = """
+Macro photograph, straight down, of smooth polished leather laid
+perfectly flat, filling the whole image edge to edge: a fine natural
+pebbled grain with a soft waxed sheen, a few tiny creases. Evenly lit
+from above, no stitching, no seams, uniform focus across the whole
+image.
+"""
 [asset.fencer.redraw]
 body = """
 Photograph of a 17th-century buccaneer fighting with a sword, seen from
@@ -2113,6 +2155,7 @@ denoise = 0.5		# low enough to keep the render's pose and facing
 prompt = ""
 [asset.fencer]
 side = "he"
+fabrics = "fencer/my"	# the same cloths as the player's
 # The body and the deck's head cut from the redraw with the deck's head
 # on, the alley's and fort's heads from theirs: head and body match.
 photo = { body = "bodyref1", head1 = "bodyref1", head2 = "bodyref2", head3 = "bodyref3" }
