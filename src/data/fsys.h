@@ -29,4 +29,10 @@ char	*fsys_mkdtemp(char *template);
  */
 int	fsys_program_dir(const char *argv0, char *out, size_t len);
 
+/*
+ * The user's language as a lowercase ISO 639 code ("fr"), from LC_ALL,
+ * LC_MESSAGES or LANG, else the system's setting: 0, or -1 when unknown.
+ */
+int	fsys_user_lang(char *out, size_t len);
+
 #endif

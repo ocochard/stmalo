@@ -142,6 +142,10 @@ pack's provenance records stay in its repository.
 ./build/flibustier --pack ~/flibustier-openpack     # the open game, no original data
 ```
 
+With no `--lang`, the game speaks the system's language (`LC_ALL`,
+`LC_MESSAGES` or `LANG`, else the Windows display language or the macOS
+preferred language) when it has text for it, and English otherwise.
+
 With no `--pack`, the game also looks for an `openpack` directory beside
 its program, in a macOS application bundle's `Contents/Resources`, or
 in an install's `share/flibustier` (see "Installing with the open

@@ -65,7 +65,8 @@ usage(void)
 	    "                later packs take priority (default: the open\n"
 	    "                pack shipped beside the program, if any)\n"
 	    "  --lang LANG   eng, fre or ger, or en, fr, de, or a language\n"
-	    "                a pack adds (default: eng)\n"
+	    "                a pack adds (default: the system's language\n"
+	    "                if the game has its text, else eng)\n"
 	    "  --saves DIR   saved games (default: $FLIBUSTIER_SAVES, else\n"
 	    "                ~/.local/share/flibustier/saves)\n"
 	    "\n"
@@ -173,11 +174,25 @@ game_lang(struct packs *packs, const char *name)
 	return (text_has_lang(packs, name) ? name : NULL);
 }
 
+/* The user's language if the game has its text, else English. */
+static const char *
+default_lang(struct packs *packs)
+{
+	const char *lang;
+	char code[8];
+
+	if (fsys_user_lang(code, sizeof(code)) != 0 ||
+	    (lang = game_lang(packs, code)) == NULL ||
+	    !text_has_lang(packs, lang))
+		return ("eng");
+	return (lang);
+}
+
 int
 main(int argc, char **argv)
 {
 	const char *data, *pack[MAX_PACKS], *id = NULL, *out = NULL;
-	const char *shot = NULL, *lang = "eng", *script = NULL, *saves = NULL;
+	const char *shot = NULL, *lang = NULL, *script = NULL, *saves = NULL;
 	enum { PLAY, SCRIPT, VIEWER, LIST, EXPORT, EXPORT_WORLD,
 	    EXPORT_SOUNDS, EXPORT_TEXT } cmd = PLAY;
 	struct packs *packs;
@@ -266,7 +281,9 @@ main(int argc, char **argv)
 		return (1);
 	}
 
-	if ((lang = game_lang(packs, lang)) == NULL) {
+	if (lang == NULL)
+		lang = default_lang(packs);
+	else if ((lang = game_lang(packs, lang)) == NULL) {
 		fprintf(stderr, "unknown language: use eng, fre or ger, or a "
 		    "language a pack gives text for\n");
 		packs_free(packs);

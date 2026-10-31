@@ -1835,6 +1835,46 @@ test_image_part(void)
 	fb_free(&fb);
 }
 
+/* Sets "name" to "value", or removes it when "value" is NULL. */
+static void
+set_env(const char *name, const char *value)
+{
+#ifdef _WIN32
+	_putenv_s(name, value != NULL ? value : "");
+#else
+	if (value != NULL)
+		setenv(name, value, 1);
+	else
+		unsetenv(name);
+#endif
+}
+
+static void
+test_user_lang(void)
+{
+	char code[8];
+
+	set_env("LC_ALL", NULL);
+	set_env("LC_MESSAGES", NULL);
+	set_env("LANG", "fr_FR.UTF-8");
+	CHECK(fsys_user_lang(code, sizeof(code)) == 0 &&
+	    strcmp(code, "fr") == 0);
+	set_env("LANG", "DE-de");
+	CHECK(fsys_user_lang(code, sizeof(code)) == 0 &&
+	    strcmp(code, "de") == 0);
+	/* LC_ALL decides over LANG, as in setlocale(). */
+	set_env("LC_ALL", "es_ES@euro");
+	CHECK(fsys_user_lang(code, sizeof(code)) == 0 &&
+	    strcmp(code, "es") == 0);
+	/* Too short a buffer, or no language in the name, is no answer. */
+	CHECK(fsys_user_lang(code, 2) != 0);
+	set_env("LC_ALL", "C");
+	if (fsys_user_lang(code, sizeof(code)) == 0)
+		CHECK(strcmp(code, "c") != 0);
+	set_env("LC_ALL", NULL);
+	set_env("LANG", NULL);
+}
+
 int
 main(void)
 {
@@ -1859,6 +1899,7 @@ main(void)
 	test_tile_terrain();
 	test_tiled();
 	test_town_files();
+	test_user_lang();
 	if (failures > 0) {
 		fprintf(stderr, "%d check(s) failed\n", failures);
 		return (1);

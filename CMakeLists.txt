@@ -24,6 +24,7 @@ add_library(flibustier_core STATIC
 	src/data/exe.c
 	src/data/fsys.c
 	src/data/progdir.c
+	src/data/userlang.c
 	src/data/iso9660.c
 	src/data/pack.c
 	src/data/sha256.c
@@ -79,6 +80,9 @@ add_library(flibustier_core STATIC
 	src/view/view.c)
 target_include_directories(flibustier_core PUBLIC src)
 target_compile_options(flibustier_core PRIVATE ${FLIBUSTIER_WARNINGS})
+if(APPLE)
+	target_link_libraries(flibustier_core PRIVATE "-framework CoreFoundation")
+endif()
 # The vendored stb_image is not ours to keep warning-free.
 set_source_files_properties(src/assets/png.c PROPERTIES COMPILE_OPTIONS -w)
 # A pack's sheets are large pictures, decoded and reduced to the game's

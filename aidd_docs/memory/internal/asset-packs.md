@@ -613,7 +613,12 @@ The game's text, when a pack gives it; otherwise the original `CSTR` and
 - **Languages.** `<lang>` is three lowercase letters. The original has
   `eng`, `fre` and `ger`. A pack may add a language (for example
   `text/spa/cstr` and `text/spa/cstn`), and `--lang` accepts any code
-  for which the pack stack gives both tables.
+  for which the pack stack gives both tables. With no `--lang`, the
+  game takes the system's language (`LC_ALL`, `LC_MESSAGES` or `LANG`,
+  else the Windows display language or the macOS preferred language)
+  when the stack gives its text, and `eng` otherwise. The system gives
+  a two-letter code, which only `en`, `fr` and `de` map to: a pack's
+  added language is reached with `--lang` only.
 - **Writing it.** The open pack's text must be written anew, never
   copied or paraphrased line by line from the original (see
   "Licensing" in the roadmap); [text-catalogue.md](text-catalogue.md)
