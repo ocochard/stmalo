@@ -232,8 +232,8 @@ list holds (x, y, town) triplets, ending in `0xFFFF`.
   original clouds' shadows, are drawn at their place on the canvas, as
   true-colour art is. The rules are not affected.
 - **Ticks:** a tick counter; 64 ticks make a day (engine: a pack's
-  `data/calendar` may change that, and the wind's and the sightings'
-  periods stretch with it, asset-packs.md). When a voyage ends,
+  `data/calendar` may change that, and the wind's period stretches
+  with it; the sightings keep theirs in ticks, asset-packs.md). When a voyage ends,
   the game adds `ticks / 64 + 1` days (VA `0x28789`).
 - **The cabin:** Space opens it (key table VA `0x33d90`, Space handler
   VA `0x1b62d`; on foot the table at VA `0x33c74`, handler VA

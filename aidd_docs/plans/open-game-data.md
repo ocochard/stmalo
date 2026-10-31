@@ -200,10 +200,17 @@ original's (decision 1).
   frame cannot bring the far ends closer; a cartogram that empties the
   sea makes coastal routes longer). The day's length became open data
   (`data/calendar`, maintainer 2026-10-29); the open pack sets it from
-  the route targets. The wind's shifts and the sightings stretch with
-  the day (maintainer, 2026-10-30): at a fixed tick period a longer day
-  had made each year at sea three times as busy (the career bot took
-  2.5 times the prizes).
+  the route targets. The wind's shifts stretch with the day. The
+  sightings stretched too (2026-10-30: at a fixed tick period a longer
+  day had made each year at sea three times as busy, the career bot
+  taking 2.5 times the prizes), but at 192 ticks a day a voyage of 250
+  cells met about 2 sails where the original's rate gives about 9, and
+  play was quiet. They count ticks again (maintainer, 2026-10-31): the
+  sea keeps the original's density of ships per distance, and the
+  balance of a year is tuned on the pack's side, by the day's length
+  (a shorter day gives back the original's pace a year) and by the
+  encounter records (what each sail is worth), against the career
+  bot's figures on the original data.
 - **The open world, merged as one** (the map, the towns, the calendar,
   the scenarios, the battle screens, the treasure spots and battle sets
   and the open-shallows tiles had to reach the pack together: each

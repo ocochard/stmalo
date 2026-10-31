@@ -22,6 +22,7 @@
 #define STANDING_FLOOR		(-3)	/* after an amnesty */
 #define TOWN_DAYS		3	/* a pass through the town's menu */
 #define WIND_TICKS		128	/* the wind may shift this often, */
+					/* in ticks of a 64-tick day */
 #define WIND_START		0xC0	/* blowing west: the trade winds */
 #define SPEED_MIN		4
 #define SPEED_MAX		12
@@ -30,7 +31,7 @@
 #define EDGE_MAX_Y		0x1dbf
 #define START_CELLS		4	/* the start town is within */
 #define SIGHTING_TICKS		32	/* a sail may appear this often, */
-					/* both in ticks of a 64-tick day */
+					/* in ticks, whatever the day */
 #define HEAT_IGNORED		16	/* added when an encounter is left */
 #define FAR_FROM_TOWNS		12	/* cells: ships from any nation */
 
@@ -1095,8 +1096,10 @@ sim_sail(struct sim *s, int turn, int ticks, int *town)
 			return (SAIL_CREW);
 		if (t >= 0)
 			return (arrive(s, t, town));
+		/* Sails are met along the way: their checks count ticks,
+		 * not days, so a longer day does not empty the sea. */
 		if (s->encounters &&
-		    (f->ticks + 4) % per_day(s, SIGHTING_TICKS) == 0 &&
+		    (f->ticks + 4) % SIGHTING_TICKS == 0 &&
 		    sighting(s)) {
 			f->speed = 0;
 			return (SAIL_ENCOUNTER);

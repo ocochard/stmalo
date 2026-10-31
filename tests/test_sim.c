@@ -670,7 +670,7 @@ static void
 test_sailing(void)
 {
 	struct sim s;
-	int town, x0, y0;
+	int town, x0, y0, i, n;
 	uint8_t w0;
 
 	make_world(&test_world);
@@ -701,6 +701,18 @@ test_sailing(void)
 	sea_game(&s, 300, 300, 0x00);
 	CHECK(sim_sail(&s, 0, 192, &town) == SAIL_TICKS &&
 	    s.day_of_year == 1);
+	/* Sightings count ticks whatever the day: a 192-tick day checks
+	 * 6 times, a 1 in 16 chance each far from towns. */
+	s.encounters = 1;
+	for (i = 0, n = 0; i < 100 * 192; i++) {
+		if (i % 192 == 0)
+			s.fleet.x = s.fleet.y = 300 * WORLD_TILE;
+		if (sim_sail(&s, 0, 1, &town) == SAIL_ENCOUNTER) {
+			n++;
+			s.encounter.stage = ENC_NONE;
+		}
+	}
+	CHECK(n > 20);		/* about 600 / 16 = 37; 12 stretched */
 	test_world.ticks_per_day = 0;
 
 	/* Turning: 4 ticks of every 8 from the press, 8 of 16 held, at
