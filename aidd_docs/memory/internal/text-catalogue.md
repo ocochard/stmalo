@@ -353,7 +353,7 @@ original; keep it that way when you update it.
 | 315 | `S_UNANSWERED`, encounter result | The player's hail is ignored and a fight begins. | none | Shown under the encounter text at x 200, 340 px wide. |
 | 316 | none | Not used by the engine; in the original a developer debug readout of free memory. | none | none |
 | 317 | `S_FORT_SUNSET`, sea battle end against a fort | Nightfall ends a battle against a town's fort. | none | Plain message, no options. |
-| 318 | `S_LANG_MENU`, the cabin's language menu (key L) | Prompt to choose the interface language. | none | Exactly three `~` options in order: English, French, German. |
+| 318 | `S_LANG_MENU`, the cabin's language menu (key L) | Prompt to choose the interface language. | none | `~` options in order: English, French, German, then Spanish (the open pack's); the engine offers as many as there are, up to four. |
 | 319 | `S_SHORT_FUNDS`, shipwright note | The shipwright runs out of money to buy everything the player offered. | none | Shown alone with a continue prompt, box 440 px wide. |
 | 320 | `S_LOAD_GAME`, save slot screen | Title of the screen for loading a saved game. | none | Single centred title line in the title font; no markup. |
 | 321 | none | Not used by the engine; empty in the original. | none | none |

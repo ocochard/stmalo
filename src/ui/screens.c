@@ -17,6 +17,7 @@
 #include "assets/scenario.h"
 #include "assets/pic.h"
 #include "assets/sheet.h"
+#include "assets/textfiles.h"
 #include "assets/tiles.h"
 #include "sim/hof.h"
 #include "sim/save.h"
@@ -2412,11 +2413,30 @@ logbook_draw(struct game *g)
  * the menu (CSTR 318: English, French, German, the order of the word
  * at VA 0x33ef0) at (250, 100) up to x 500.  Another language reloads
  * the texts and misc.crs (VA 0xba2, 0xcb0); then back to the cabin.
- * Escape goes back unchanged (an engine choice).
+ * Escape goes back unchanged (an engine choice).  A pack's menu may add
+ * a fourth option, Spanish, offered when the packs give its text.
  */
 #define S_LANG_MENU		318
 
-static const char *const menu_lang[3] = { "eng", "fre", "ger" };
+/* The menu's options: its "~" lines, at most one per language; the
+ * original's three when the text has none. */
+static int
+language_count(const struct game *g)
+{
+	const char *s = game_str(g, S_LANG_MENU);
+	int n = 0;
+
+	for (; *s != '\0'; s++)
+		if (*s == '~' && n < GAME_LANGS)
+			n++;
+	return (n > 0 ? n : 3);
+}
+
+static int
+language_enabled(const struct game *g, int i)
+{
+	return (i < 3 || text_has_lang(g->packs, game_langs[i]));
+}
 
 static void
 language_enter(struct game *g)
@@ -2431,8 +2451,8 @@ language_enter(struct game *g)
 static void
 language_choose(struct game *g, int i)
 {
-	if (strcmp(g->lang, menu_lang[i]) != 0 &&
-	    game_set_lang(g, menu_lang[i]) != 0)
+	if (strcmp(g->lang, game_langs[i]) != 0 &&
+	    game_set_lang(g, game_langs[i]) != 0)
 		snprintf(g->msg, sizeof(g->msg), "%s", g->err);
 	game_goto(g, &screen_cabin);
 }
@@ -2440,7 +2460,8 @@ language_choose(struct game *g, int i)
 static void
 language_event(struct game *g, const struct ui_event *ev)
 {
-	menu_event(g, ev, 3, NULL, language_choose, &screen_cabin);
+	menu_event(g, ev, language_count(g), language_enabled,
+	    language_choose, &screen_cabin);
 }
 
 static void
@@ -4782,8 +4803,9 @@ sword_flag(struct game *g, int side, int x, int frame, int bar)
  * The pattern of a crew fighter's label, filled with the nation word
  * and the title: a pack's own (CSTN 74.6, which may reorder them with
  * %1$s and %2$s), else the original's: the nation first, but the French
- * captain after it, "Capitaine espagnol" (VA 0x16447).  The German
- * original drops the space; the engine keeps it.
+ * captain after it, "Capitaine espagnol" (VA 0x16447); in Spanish,
+ * every title before it, "Capitán inglés" (an engine choice).  The
+ * German original drops the space; the engine keeps it.
  */
 static const char *
 title_format(const struct game *g, int title)
@@ -4793,6 +4815,8 @@ title_format(const struct game *g, int title)
 	if (*fmt != '\0')
 		return (fmt);
 	if (title == TITLE_CAPTAIN && strcmp(g->lang, "fre") == 0)
+		return ("%2$s %1$s");
+	if (strcmp(g->lang, "spa") == 0)
 		return ("%2$s %1$s");
 	return ("%s %s");
 }
@@ -5430,17 +5454,17 @@ const struct screen screen_shipwright = {
 #define GLYPH_SMALL		20	/* '/', 0-9; 31 and 42: other inks */
 
 /*
- * The pieces by language, then the set (VA 0x20138, table at VA
- * 0x3487c): the merchant's and the shipwright's, then the loot board's
- * (VA 0x2264f), whose sign reads Discard and Take.
+ * The pieces by set, then bank, then language (VA 0x20138, table at VA
+ * 0x3487c; the Spanish, a pack's): the merchant's and the shipwright's,
+ * then the loot board's (VA 0x2264f), whose sign reads Discard and Take.
  */
-static const char *board_files[3][2][3] = {
-	{ { "spr/buysell", "spr/buyboard", "spr/buysell1" },
-	  { "spr/take-dis", "spr/takboard", "spr/takeds1" } },
-	{ { "spr/buysellf", "spr/buybrdf", "spr/buysll1f" },
-	  { "spr/takedisf", "spr/takbrdf", "spr/takeds1f" } },
-	{ { "spr/buysellg", "spr/buybrdg", "spr/buysll1g" },
-	  { "spr/takedisg", "spr/takbrdg", "spr/takeds1g" } },
+static const char *const board_files[2][3][GAME_LANGS] = {
+	{ { "spr/buysell", "spr/buysellf", "spr/buysellg", "spr/buysells" },
+	  { "spr/buyboard", "spr/buybrdf", "spr/buybrdg", "spr/buybrds" },
+	  { "spr/buysell1", "spr/buysll1f", "spr/buysll1g", "spr/buysll1s" } },
+	{ { "spr/take-dis", "spr/takedisf", "spr/takedisg", "spr/takediss" },
+	  { "spr/takboard", "spr/takbrdf", "spr/takbrdg", "spr/takbrds" },
+	  { "spr/takeds1", "spr/takeds1f", "spr/takeds1g", "spr/takeds1s" } },
 };
 /* The loot board's mode (VA 0x2264f): 1 overboard, 2 a capture, 3 a
  * sack; its name tag, layout record 0, is frame 88 + mode. */
@@ -5497,8 +5521,7 @@ merchant_row(struct game *g, int row, int buy)
 static void
 merchant_enter(struct game *g)
 {
-	int lang = strcmp(g->lang, "fre") == 0 ? 1 :
-	    strcmp(g->lang, "ger") == 0 ? 2 : 0, i;
+	int i;
 
 	game_background(g, g->jettison || g->prize_loot ? "pic/plunder" :
 	    g->looting ?
@@ -5509,8 +5532,8 @@ merchant_enter(struct game *g)
 	g->ink[1] = 220;
 	g->ink[2] = 170;
 	for (i = 0; i < 3; i++)
-		load_bank(g, board_files[lang][BOARD_MODE(g) != 0][i], 0,
-		    &g->shop_spr[i]);
+		load_bank(g, game_lang_asset(g,
+		    board_files[BOARD_MODE(g) != 0][i]), 0, &g->shop_spr[i]);
 	g->selected = 0;
 	g->shop_buying = 1;
 	game_music(g, g->looting && !g->jettison ? MUS_PLUNDER : g->jettison ?
@@ -6962,8 +6985,7 @@ const struct screen screen_cave = {
 static void
 cannon_enter(struct game *g)
 {
-	int lang = strcmp(g->lang, "fre") == 0 ? 1 :
-	    strcmp(g->lang, "ger") == 0 ? 2 : 0, i;
+	int i;
 
 	game_background(g, "pic/swright");
 	game_portrait(g, NULL);
@@ -6971,7 +6993,8 @@ cannon_enter(struct game *g)
 	g->ink[1] = 220;
 	g->ink[2] = 170;
 	for (i = 0; i < 3; i++)
-		load_bank(g, board_files[lang][0][i], 0, &g->shop_spr[i]);
+		load_bank(g, game_lang_asset(g, board_files[0][i]), 0,
+		    &g->shop_spr[i]);
 	g->shop_buying = 0;
 	/* Each opening starts his side at none (VA 0x22e12): guns sold
 	 * before can no longer be bought back. */

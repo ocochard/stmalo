@@ -364,6 +364,16 @@ void	game_draw(struct game *g);	/* into g->fb */
 /* Strings, "" when missing. */
 const char	*game_str(const struct game *g, size_t i);
 const char	*game_word(const struct game *g, size_t group, size_t i);
+/*
+ * The languages with their own pictures, in the order of every
+ * per-language table: the original's three, then Spanish, which only a
+ * pack gives.
+ */
+#define GAME_LANGS	4
+extern const char *const game_langs[GAME_LANGS];
+/* "ids[i]" for the language, when the packs give it, else English's. */
+const char	*game_lang_asset(const struct game *g,
+		    const char *const ids[GAME_LANGS]);
 /* Switch to another language's texts and plaques: 0, or -1 with
  * g->err set and the old language kept. */
 int	game_set_lang(struct game *g, const char *lang);

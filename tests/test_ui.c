@@ -581,6 +581,9 @@ test_language(void)
 	CHECK(game_script(g, "type:l wait:40 enter wait:40") == 0 &&
 	    strcmp(g->lang, "eng") == 0 &&
 	    strcmp(game_str(g, 274), eng) == 0);
+	/* The original's menu has three options: a fourth Down wraps. */
+	CHECK(game_script(g, "type:l wait:40 down down down enter "
+	    "wait:40") == 0 && strcmp(g->lang, "eng") == 0);
 	/* A language no pack has: the old one is kept. */
 	CHECK(game_set_lang(g, "xyz") == -1 &&
 	    strcmp(g->lang, "eng") == 0 &&

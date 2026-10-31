@@ -118,15 +118,29 @@ load_cursor(struct game *g)
 	g->cursor.h = h;
 }
 
+const char *const game_langs[GAME_LANGS] = { "eng", "fre", "ger", "spa" };
+
+const char *
+game_lang_asset(const struct game *g, const char *const ids[GAME_LANGS])
+{
+	int i;
+
+	for (i = 1; i < GAME_LANGS; i++)
+		if (strcmp(g->lang, game_langs[i]) == 0)
+			return (packs_has(g->packs, ids[i]) ? ids[i] : ids[0]);
+	return (ids[0]);
+}
+
 /* The language's permanent sprites (VA 0x1dd6: misc.crs, miscf.crs,
- * miscg.crs), which hold the "Click to continue" plaque. */
+ * miscg.crs; ui/miscs a pack's Spanish), which hold the "Click to
+ * continue" plaque. */
 static void
 load_misc(struct game *g)
 {
-	const char *id = strcmp(g->lang, "fre") == 0 ? "ui/miscf" :
-	    strcmp(g->lang, "ger") == 0 ? "ui/miscg" : "ui/misc";
+	static const char *const ids[GAME_LANGS] = { "ui/misc", "ui/miscf",
+	    "ui/miscg", "ui/miscs" };
 
-	bank_load(g->packs, id, BANK_RUNS, &g->misc);
+	bank_load(g->packs, game_lang_asset(g, ids), BANK_RUNS, &g->misc);
 }
 
 int

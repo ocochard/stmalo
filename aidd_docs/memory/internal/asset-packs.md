@@ -617,8 +617,9 @@ The game's text, when a pack gives it; otherwise the original `CSTR` and
   game takes the system's language (`LC_ALL`, `LC_MESSAGES` or `LANG`,
   else the Windows display language or the macOS preferred language)
   when the stack gives its text, and `eng` otherwise. The system gives
-  a two-letter code, which only `en`, `fr` and `de` map to: a pack's
-  added language is reached with `--lang` only.
+  a two-letter code, which `en`, `fr`, `de` and `es` map to (`es` to
+  `spa`, given by the open pack); another language a pack adds is
+  reached with its three-letter `--lang` only.
 - **Writing it.** The open pack's text must be written anew, never
   copied or paraphrased line by line from the original (see
   "Licensing" in the roadmap); [text-catalogue.md](text-catalogue.md)
@@ -725,9 +726,11 @@ engine does today with a code it does not know:
 | Hall of Fame heading | `pic/fame` | the open pack paints "Hall of Fame" into the picture: English in every language |
 | Intro lettering | `spr/and`, `spr/present` | the open pack's sprites read "and" and "present": English in every language |
 
-- **Language menu.** The cabin's menu (key `L`) offers only `eng`,
-  `fre` and `ger` (`menu_lang`, `src/ui/screens.c`); another language
-  is reached with `--lang` only.
+- **Language menu.** The cabin's menu (key `L`) offers `eng`, `fre`,
+  `ger`, then `spa` (`game_langs`, `src/ui/game.c`): as many as CSTR
+  318 has `~` options, so the original's text offers three; Spanish is
+  offered only when the stack gives its text. Another language is
+  reached with `--lang` only.
 - **Answers.** The Y/N prompts take Y, N and the first letter of the
   language's `S_YES` (CSTR 274) unless it is N, so they follow the new
   text with no change.
@@ -741,14 +744,17 @@ engine does today with a code it does not know:
 - **Open pack art.** `tools/artgen/assets.toml` sets the words of the
   boards and plaques per language (`[asset.board.words.<lang>]`,
   `[asset.uimisc.words.<lang>]`, the IDs in each asset's per-language
-  table) for `eng`, `fre` and `ger`; `pic/fame`, `spr/and` and
+  table) for `eng`, `fre`, `ger` and `spa`; `pic/fame`, `spr/and` and
   `spr/present` take a single English text.
+- **Spanish art IDs.** The original's per-language banks end in `f` or
+  `g`; Spanish ends in `s` (`ui/miscs`, `spr/buysells`, `spr/buybrds`,
+  `spr/buysll1s`, `spr/takediss`, `spr/takbrds`, `spr/takeds1s`), each
+  falling back to English's when no pack gives it
+  (`game_lang_asset()`, `src/ui/game.c`).
 
-So a pack adding a language today brings its text and credits; its
-boards, plaques and the three English pictures show in English, and the
-cabin menu does not list it. Giving it its own art needs a language
-suffix rule for these IDs in the engine (with English as the fall-back)
-and per-language words for every artgen asset that paints them.
+So a pack adding a language other than Spanish brings its text and
+credits; its boards, plaques and the three English pictures show in
+English, and the cabin menu does not list it.
 
 ## Per-town assets
 

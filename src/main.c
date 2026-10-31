@@ -65,8 +65,8 @@ usage(void)
 	    "                later packs take priority (default: the open\n"
 	    "                pack shipped beside the program, if any)\n"
 	    "  --lang LANG   eng, fre or ger, or en, fr, de, or a language\n"
-	    "                a pack adds (default: the system's language\n"
-	    "                if the game has its text, else eng)\n"
+	    "                a pack adds, es for spa (default: the system's\n"
+	    "                language if the game has its text, else eng)\n"
 	    "  --saves DIR   saved games (default: $FLIBUSTIER_SAVES, else\n"
 	    "                ~/.local/share/flibustier/saves)\n"
 	    "\n"
@@ -155,7 +155,8 @@ list_ids(struct packs *packs)
 
 /*
  * The game's language code for "name", which may be the ISO one, or a
- * language whose text a pack adds; NULL when there is none.
+ * language whose text a pack adds; NULL when there is none.  The first
+ * three are the original's own; the others need a pack's text.
  */
 static const char *
 game_lang(struct packs *packs, const char *name)
@@ -164,13 +165,17 @@ game_lang(struct packs *packs, const char *name)
 		{ "eng", "en", "english" },
 		{ "fre", "fr", "fra" },
 		{ "ger", "de", "deu" },
+		{ "spa", "es", "spanish" },
 	};
 	size_t i, k;
 
 	for (i = 0; i < sizeof(codes) / sizeof(codes[0]); i++)
 		for (k = 0; k < 3; k++)
-			if (strcmp(name, codes[i][k]) == 0)
-				return (codes[i][0]);
+			if (strcmp(name, codes[i][k]) == 0) {
+				name = codes[i][0];
+				if (i < 3)
+					return (name);
+			}
 	return (text_has_lang(packs, name) ? name : NULL);
 }
 

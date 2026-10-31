@@ -2917,11 +2917,13 @@ flat = { colours = ["#141210", "#e8e2d0"] }
 eng = { buysell = "buysell", buyboard = "buyboard", buysell1 = "buysell1" }
 fre = { buysell = "buysellf", buyboard = "buybrdf", buysell1 = "buysll1f" }
 ger = { buysell = "buysellg", buyboard = "buybrdg", buysell1 = "buysll1g" }
+spa = { buysell = "buysells", buyboard = "buybrds", buysell1 = "buysll1s" }
 # The loot board's set (overboard, a capture, a sack): Discard and Take.
 [asset.board.take_banks]
 eng = { buysell = "take-dis", buyboard = "takboard", buysell1 = "takeds1" }
 fre = { buysell = "takedisf", buyboard = "takbrdf", buysell1 = "takeds1f" }
 ger = { buysell = "takedisg", buyboard = "takbrdg", buysell1 = "takeds1g" }
+spa = { buysell = "takediss", buyboard = "takbrds", buysell1 = "takeds1s" }
 [asset.board.paint]
 wood = """
 Close-up photograph, straight on and flat, of a panel of dark polished
@@ -3075,6 +3077,26 @@ take_all = "Alles\nnehmen"
 space = "Platz im\nFrachtraum"
 tons = "Tonnen"
 ok = "OK"
+[asset.board.words.spa]
+discard = "Tirar"
+take = "Tomar"
+food = "Víveres"
+goods = "Carga"
+sugar = "Azúcar"
+tobacco = "Tabaco"
+hides = "Cueros"
+cannon = "Cañones"
+sell = "Vender"
+buy = "Comprar"
+pcs = "pzs"
+merchant = "Comercio"
+overboard = "Echar por\nla borda"
+captured = "Navío\napresado"
+plundered = "Villa\nsaqueada"
+take_all = "Tomarlo\ntodo"
+space = "Sitio en\nla bodega"
+tons = "tonel."
+ok = "O.K."
 
 # The treasure cave's piles (spr/tcave0-7), the captain's fortune: each
 # painted in turn into pic/trescave through its mask (layouts/tcave-N,
@@ -3975,7 +3997,7 @@ source = "the interface's pieces, described"
 prompt = ""
 [asset.uimisc]
 font = "fonts/imfellenglish/IMFeENrm28P.ttf"
-banks = { eng = "misc", fre = "miscf", ger = "miscg" }
+banks = { eng = "misc", fre = "miscf", ger = "miscg", spa = "miscs" }
 [asset.uimisc.paint]
 plank = """
 Close-up photograph, straight on and flat, of a weathered plank of
@@ -3997,6 +4019,11 @@ quit = "Beenden? (J/N)"
 paused = "Pause"
 continue = "Klicken zum\nWeitermachen"
 disembark = "An Land gehen?\n(J/N)"
+[asset.uimisc.words.spa]
+quit = "¿Salir? (S/N)"
+paused = "En pausa"
+continue = "Pulsad para\nseguir"
+disembark = "¿Desembarcar?\n(S/N)"
 
 # The battles' small sprites: the sea battle's shots, splashes, bursts,
 # aiming mark and wind compass; the land battle's party badges, the

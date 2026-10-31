@@ -138,7 +138,7 @@ pack's provenance records stay in its repository.
 ## Running
 
 ```sh
-./build/flibustier --data ~/games/pirates_gold [--lang eng|fre|ger, or en|fr|de]
+./build/flibustier --data ~/games/pirates_gold [--lang eng|fre|ger, or en|fr|de; es|spa with the open pack]
 ./build/flibustier --pack ~/flibustier-openpack     # the open game, no original data
 ```
 
