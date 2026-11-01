@@ -14,6 +14,7 @@ where they began, so the frames loop.  A Jolly Roger's fly is torn.
 
     blender -b -P flag.py -- --design DESIGN.png --out DIR [--frame 450]
                           [--torn] [--frames 8] [--no-staff] [--tilt 22]
+                          [--wind 1]
 
 writes DIR/0.png to DIR/7.png, transparent around the flag and staff.
 """
@@ -97,10 +98,14 @@ def flag_mesh(width, height, mat):
     return ob
 
 
-def wave(ob, width, phase):
+def wave(ob, width, phase, wind=1.0):
     """Ripple the flag: waves running from the staff to the fly, growing
-    with the distance from the staff, and a droop at the fly."""
+    with the distance from the staff, and a droop at the fly.  Below a
+    full wind (1) the folds are shallower and the cloth hangs down the
+    staff, its fly falling the more the lighter the wind."""
     me = ob.data
+    fold = 0.4 + 0.6 * wind
+    hang = math.radians(70) * (1 - wind)
     for v in me.vertices:
         x, z = v.co.x, v.co.z
         u = x / width
@@ -109,13 +114,18 @@ def wave(ob, width, phase):
         a = u ** 0.8
         y = 0.30 * a * math.sin(2 * math.pi * (1.3 * u - phase)) + \
             0.10 * a * math.sin(2 * math.pi * (2.7 * u + 0.8 * z - 2 * phase))
-        v.co.y = y * width
+        v.co.y = y * fold * width
         # Folds pull the cloth in towards the staff, and its fly lifts
         # and falls with them, so the outline moves too.
         v.co.x = x - 0.10 * width * a * (1 + math.cos(2 * math.pi * (
             1.3 * u - phase))) / 2
         v.co.z = z - 0.05 * width * u * u + \
             0.07 * width * a * math.sin(2 * math.pi * (1.1 * u - phase))
+        if hang:
+            # Hung from the staff: the cloth's run from it turned down,
+            # its hoist kept along the staff.
+            v.co.z -= x * math.sin(hang)
+            v.co.x *= math.cos(hang)
 
 
 def main():
@@ -128,6 +138,8 @@ def main():
     ap.add_argument("--torn", action="store_true")
     ap.add_argument("--no-staff", action="store_true",
                     help="the cloth alone, as the identity screen's flags")
+    ap.add_argument("--wind", type=float, default=1.0,
+                    help="from 0 (the cloth hanging) to 1 (flying out)")
     ap.add_argument("--tilt", type=float, default=22,
                     help="the cloth's lean, in degrees")
     args = ap.parse_args(argv)
@@ -196,7 +208,7 @@ def main():
     for f in range(args.frames):
         for v, co in zip(flag.data.vertices, base):
             v.co = co
-        wave(flag, width, f / args.frames)
+        wave(flag, width, f / args.frames, args.wind)
         flag.data.update()
         sc.render.filepath = os.path.join(args.out, "%d.png" % f)
         bpy.ops.render.render(write_still=True)

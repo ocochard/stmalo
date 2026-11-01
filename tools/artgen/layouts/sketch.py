@@ -358,6 +358,10 @@ TOWN_HARBOUR = ["polygon 56,160 128,160 128,262 56,262",
                 "polygon 0,322 166,322 166,470 0,470"]
 # The closed gate the frame adds, as the shape it keeps whole.
 TOWN_GATE = ["polygon 598,220 628,220 628,258 598,258"]
+# The flag the model put on a pole in front of the governor's house, its
+# pole down to the gate's pillar: taken out, as each nation flies its own
+# (pic/town/<nation>).
+TOWN_FLAG = ["polygon 490,104 518,104 518,142 506,142 506,174 490,174"]
 
 
 # The duel screens' lower panel (the alley, the fort, the deck), as
@@ -500,6 +504,7 @@ if __name__ == "__main__":
     mask("cabin-corner.png", CABIN_CORNER)
     mask("town-harbour.png", TOWN_HARBOUR)
     mask("town-gate.png", TOWN_GATE)
+    mask("town-flag.png", TOWN_FLAG)
     mask("tavern-infoman.png", INFOMAN)
     mask("tavern-stranger.png", STRANGER)
     # The town's sky along the sketch's horizon line, which the model

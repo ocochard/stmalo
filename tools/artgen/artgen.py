@@ -3236,6 +3236,92 @@ def make_fightflags(args, spec, a, profile, seed):
     return {"flags": ff["flags"], "frame": [fw, fh]}
 
 
+def make_flown(args, spec, a, profile, seed):
+    """Another asset's picture with a nation's flag flown over it (the
+    town under each nation): the flag's design waved upright on its
+    staff by flags/flag.py in a "wind" from 0 to 1, one frame, set with
+    the staff's top at "staff", the whole "width" wide and the staff
+    down to "foot"; "flip" flies it to the left of its staff (its back
+    seen)."""
+    import boards
+    k = spec["pack"]["art_height"] / SCREEN_H
+    fl = a["flown"]
+    on = [r for r in spec["asset"] if r["id"] == fl["on"]][0]
+    base = os.path.join(args.pack, on["file"])
+    if not os.path.exists(base):
+        print("%s: no %s yet" % (a["id"], on["file"]), file=sys.stderr)
+        return None
+    design = [r for r in spec["asset"]
+              if r["id"] == fl["design_of"]][0]["flag"]
+    host = args.render_host
+    script = os.path.join(HERE, "flags", "flag.py")
+    work = os.path.join(args.pack, "art", "flown.work")
+    os.makedirs(work, exist_ok=True)
+    name = fl["design_of"].replace("/", "-")
+    dpath = os.path.join(work, "%s-design.png" % name)
+    remote = "flibustier-flags/flown-%s" % name
+    flag = os.path.join(work, "%s-0.png" % name)
+    try:
+        if not os.path.exists(dpath):
+            free(args.server)
+            with open(dpath, "wb") as f:
+                f.write(render(args.server, design_workflow(
+                    spec, profile, seed, design["design"], 1200, 800,
+                    "flibustier/" + a["id"].replace("/", "-") +
+                    "-design")))
+            if design.get("inks"):
+                flatten_inks(dpath, design["inks"])
+            boards.magick(dpath, "-gravity", "center", "-crop",
+                          "960x640+0+0", "+repage", dpath)
+        subprocess.run(["ssh", "-o", "BatchMode=yes", host,
+                        "mkdir -p %s" % remote], check=True,
+                       stdin=subprocess.DEVNULL)
+        subprocess.run(["scp", "-q", script, dpath,
+                        "%s:%s/" % (host, remote)], check=True)
+        subprocess.run(["ssh", "-o", "BatchMode=yes", host,
+                        "cd %s && rm -rf out && blender -b -P flag.py -- "
+                        "--design %s --out out --frame 900 --frames 1 "
+                        "--tilt 0 --wind %g %s > blender.log 2>&1" % (
+                            remote, os.path.basename(dpath),
+                            fl.get("wind", 1),
+                            "--torn" if design.get("torn") else "")],
+                       check=True, stdin=subprocess.DEVNULL)
+        subprocess.run(["scp", "-q", "%s:%s/out/0.png" % (host, remote),
+                        flag], check=True)
+    except (RuntimeError, subprocess.CalledProcessError) as e:
+        print("%s: %s" % (a["id"], e), file=sys.stderr)
+        return None
+    # The render's staff runs off its bottom edge: the flag scaled to its
+    # width, the staff's last row drawn on (or cut) down to the foot;
+    # dulled and softened a little, as the photograph's distance is.
+    x, y = fl["staff"]
+    w = round(fl["width"] * k)
+    h = round((fl["foot"] - y) * k)
+    boards.magick(flag, "-trim", "+repage", "-resize", "%dx" % w,
+                  *(["-flop"] if fl.get("flip") else []), flag)
+    r = subprocess.run(["magick", "identify", "-format", "%h", flag],
+                       capture_output=True, text=True, check=True)
+    fh = int(r.stdout)
+    if fh < h:
+        boards.magick(flag, "(", "+clone", "-gravity", "south", "-crop",
+                      "%dx1+0+0" % w, "+repage", "-scale",
+                      "%dx%d!" % (w, h - fh), ")", "-append", flag)
+    boards.magick(base, "(", flag, "-gravity", "northwest", "-crop",
+                  "%dx%d+0+0" % (w, h), "+repage", "-modulate", "95,80",
+                  "-blur", "0x0.6", ")", "-gravity",
+                  "northwest", "-geometry", "+%d+%d" % (
+                      round(x * k) - (w - 2 if fl.get("flip") else 1),
+                      round(y * k)), "-composite",
+                  "-depth", "8", os.path.join(args.pack, a["file"]))
+    return {"on": fl["on"], "on_sha256": hashlib.sha256(
+                open(base, "rb").read()).hexdigest(),
+            "design_of": fl["design_of"],
+            "design": " ".join(design["design"].split()),
+            "staff": fl["staff"], "width": fl["width"], "foot": fl["foot"],
+            "wind": fl.get("wind", 1), "flip": fl.get("flip", False),
+            "model": "flags/flag.py"}
+
+
 def make_uimisc(args, spec, a, profile, seed):
     """The interface's small pieces, one bank a language (ui/misc,
     ui/miscf, ui/miscg): the map's marks (a town's dot, the chosen town's
@@ -3603,7 +3689,8 @@ def main():
                 a.get("cave") or a.get("title") or a.get("bigs") or \
                 a.get("tmap") or a.get("walker") or a.get("lettering") or \
                 a.get("layout") or a.get("citymap") or \
-                a.get("fightflags") or a.get("uimisc") or a.get("btlmisc"):
+                a.get("fightflags") or a.get("uimisc") or \
+                a.get("btlmisc") or a.get("flown"):
             t0 = time.time()
             record = (make_clouds if a.get("clouds") else make_board
                       if a.get("board") else make_cave if a.get("cave")
@@ -3617,6 +3704,7 @@ def main():
                       else make_fightflags if a.get("fightflags")
                       else make_uimisc if a.get("uimisc")
                       else make_btlmisc if a.get("btlmisc")
+                      else make_flown if a.get("flown")
                       else make_sprite)(args, spec, a, profile, seed)
             if record is None:
                 failed.append(a["id"])
@@ -3947,8 +4035,9 @@ def main():
         if a.get("before_finish") and ok:
             # The picture as rendered, before its last touches take out
             # what a sprite frame brings back (the town's harbour).
-            shutil.copyfile(out, os.path.join(args.pack,
-                                              a["before_finish"]))
+            keep = os.path.join(args.pack, a["before_finish"])
+            os.makedirs(os.path.dirname(keep), exist_ok=True)
+            shutil.copyfile(out, keep)
         for m, step in enumerate(a.get("finish", []) if ok else []):
             if step.get("instruction"):
                 # The edit model changes that part (it keeps what is

@@ -787,8 +787,8 @@ reenactment photography, wide lens, sharp focus, realistic.
 # The ship and the shipwright's shed come with the harbour frame (drawn
 # while the ship is in port), cut from the picture before they are taken
 # out of it; and the governor's gate, open, where the game draws it
-# closed.
-before_finish = "art/town-in-port.png"
+# closed.  Kept in a work directory: the game never loads it.
+before_finish = "art/town.work/town-in-port.png"
 # The sketch's horizon line, drawn by the model as a wire across the sky.
 [[asset.touchup]]
 mask = "layouts/town-sky-line.png"
@@ -820,6 +820,17 @@ thing = """
 a gateway on the path, two weathered stone pillars of the same stone as
 the wall beside them, a wrought-iron gate swung wide open against one
 of them
+"""
+# The prompt's flag, on a pole the model stood on the gate's pillar in
+# front of the house, and Spanish whoever holds the town: taken out, each
+# nation's picture (pic/town/<nation>) flies its own over the roof.
+[[asset.finish]]
+mask = "layouts/town-flag.png"
+rect = [470, 90, 70, 100]
+scene = "a Caribbean port town of the 1650s, the governor's residence"
+instruction = """
+Remove the flag and its pole completely: show the plastered wall, the
+tiled roof and the sky that were behind them.
 """
 
 # The town's frames: the harbour while the ship is in port, the gate
@@ -854,6 +865,66 @@ a closed wrought-iron gate standing shut between the two stone pillars,
 filling the gap between them
 """
 
+# The town under each nation's flag (looked up before pic/town by the
+# town's nation): pic/town with that nation's colours waved on a staff
+# by flags/flag.py, standing on the governor's roof.  The town's frames
+# (spr/town) stay shared: the flag is clear of them.
+[[asset]]
+id = "pic/town/spain"
+file = "art/town-spain.png"
+seed = 1660
+source = "pic/town under the flag of pic/f-span"
+prompt = ""
+[asset.flown]
+on = "pic/town"
+design_of = "pic/f-span"
+staff = [528.9, 59]	# the staff's top, over the gable's finial
+width = 21
+wind = 0.35	# a light breeze: the fly hangs
+flip = true	# flying to the left, clear of the bell tower
+foot = 124.9	# set in the finial (its top at y 123)
+[[asset]]
+id = "pic/town/england"
+file = "art/town-england.png"
+seed = 1660
+source = "pic/town under the flag of pic/f-engl"
+prompt = ""
+[asset.flown]
+on = "pic/town"
+design_of = "pic/f-engl"
+staff = [528.9, 59]
+width = 21
+wind = 0.35
+flip = true
+foot = 124.9
+[[asset]]
+id = "pic/town/france"
+file = "art/town-france.png"
+seed = 1660
+source = "pic/town under the flag of pic/f-french"
+prompt = ""
+[asset.flown]
+on = "pic/town"
+design_of = "pic/f-french"
+staff = [528.9, 59]
+width = 21
+wind = 0.35
+flip = true
+foot = 124.9
+[[asset]]
+id = "pic/town/holland"
+file = "art/town-holland.png"
+seed = 1660
+source = "pic/town under the flag of pic/f-dutch"
+prompt = ""
+[asset.flown]
+on = "pic/town"
+design_of = "pic/f-dutch"
+staff = [528.9, 59]
+width = 21
+wind = 0.35
+flip = true
+foot = 124.9
 [[asset]]
 id = "pic/tavern"
 file = "art/tavern.png"
